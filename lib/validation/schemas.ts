@@ -151,6 +151,132 @@ export const userIdSchema = createUserIdSchema();
 export const nonEmptyStringSchema = createNonEmptyStringSchema();
 
 /**
+ * i18n対応のSoracom SIM IDスキーマを生成
+ * 形式: 数字のみ（ICCID形式、18〜22桁）
+ *
+ * @returns Zodスキーマ
+ *
+ * @example
+ * ```typescript
+ * const schema = createSimIdSchema();
+ * const simId = schema.parse("8942310022000012345");
+ * ```
+ */
+export function createSimIdSchema() {
+  return z.string().superRefine((val, ctx) => {
+    if (val.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.too_small,
+        minimum: 1,
+        type: "string",
+        inclusive: true,
+        message: t("soracom.errors.validation.sim_id_empty"),
+      });
+      return;
+    }
+    if (!/^\d{18,22}$/.test(val)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.invalid_string,
+        validation: "regex",
+        message: t("soracom.errors.validation.sim_id_format"),
+      });
+    }
+  });
+}
+
+/**
+ * i18n対応のIMSIスキーマを生成
+ * 形式: 数字のみ（15桁）
+ *
+ * @returns Zodスキーマ
+ *
+ * @example
+ * ```typescript
+ * const schema = createImsiSchema();
+ * const imsi = schema.parse("440101234567890");
+ * ```
+ */
+export function createImsiSchema() {
+  return z.string().superRefine((val, ctx) => {
+    if (val.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.too_small,
+        minimum: 1,
+        type: "string",
+        inclusive: true,
+        message: t("soracom.errors.validation.imsi_empty"),
+      });
+      return;
+    }
+    if (!/^\d{15}$/.test(val)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.invalid_string,
+        validation: "regex",
+        message: t("soracom.errors.validation.imsi_format"),
+      });
+    }
+  });
+}
+
+/**
+ * i18n対応のカバレッジタイプスキーマを生成
+ * 値: "jp" または "g"
+ *
+ * @returns Zodスキーマ
+ */
+export function createCoverageTypeSchema() {
+  return z.string().superRefine((val, ctx) => {
+    if (val !== "jp" && val !== "g") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.invalid_enum_value,
+        options: ["jp", "g"],
+        received: val,
+        message: t("soracom.errors.validation.coverage_type_invalid"),
+      });
+    }
+  });
+}
+
+/**
+ * i18n対応の統計期間スキーマを生成
+ * 値: "day" または "month"
+ *
+ * @returns Zodスキーマ
+ */
+export function createStatsPeriodSchema() {
+  return z.string().superRefine((val, ctx) => {
+    if (val !== "day" && val !== "month") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.invalid_enum_value,
+        options: ["day", "month"],
+        received: val,
+        message: t("soracom.errors.validation.stats_period_invalid"),
+      });
+    }
+  });
+}
+
+/**
+ * Soracom SIM ID スキーマ（デフォルトインスタンス）
+ */
+export const simIdSchema = createSimIdSchema();
+
+/**
+ * IMSI スキーマ（デフォルトインスタンス）
+ */
+export const imsiSchema = createImsiSchema();
+
+/**
+ * カバレッジタイプ スキーマ（デフォルトインスタンス）
+ */
+export const coverageTypeSchema = createCoverageTypeSchema();
+
+/**
+ * 統計期間 スキーマ（デフォルトインスタンス）
+ */
+export const statsPeriodSchema = createStatsPeriodSchema();
+
+/**
  * 型推論のエクスポート
  */
 export type ChannelId = z.infer<ReturnType<typeof createChannelIdSchema>>;
@@ -158,3 +284,7 @@ export type UserId = z.infer<ReturnType<typeof createUserIdSchema>>;
 export type NonEmptyString = z.infer<
   ReturnType<typeof createNonEmptyStringSchema>
 >;
+export type SimId = z.infer<ReturnType<typeof createSimIdSchema>>;
+export type Imsi = z.infer<ReturnType<typeof createImsiSchema>>;
+export type CoverageType = z.infer<ReturnType<typeof createCoverageTypeSchema>>;
+export type StatsPeriod = z.infer<ReturnType<typeof createStatsPeriodSchema>>;

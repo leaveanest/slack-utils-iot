@@ -27,5 +27,43 @@
     "completed": "ワークフローが完了しました",
     "loading_channel": "チャンネル情報を読み込み中...",
     "channel_loaded": "チャンネル {name} が正常に読み込まれました"
+  },
+  "soracom": {
+    "errors": {
+      "auth_failed": "Soracom認証に失敗しました: {error}",
+      "api_request_failed": "Soracom APIリクエストに失敗しました (HTTP {status}): {message}",
+      "missing_env": "必須の環境変数が設定されていません: {name}",
+      "sim_not_found": "SIMが見つかりません: {simId}",
+      "stats_fetch_failed": "通信量統計の取得に失敗しました: {error}",
+      "validation": {
+        "sim_id_empty": "SIM IDを空にすることはできません",
+        "sim_id_format": "SIM IDは18〜22桁の数字（ICCID形式）である必要があります",
+        "imsi_empty": "IMSIを空にすることはできません",
+        "imsi_format": "IMSIは15桁の数字である必要があります",
+        "coverage_type_invalid": "カバレッジタイプは 'jp' または 'g' である必要があります",
+        "stats_period_invalid": "統計期間は 'day' または 'month' である必要があります"
+      }
+    },
+    "messages": {
+      "sim_list_header": "Soracom SIM一覧 ({count}件)",
+      "sim_detail_header": "SIM詳細: {simId}",
+      "sim_status": "状態: {status}",
+      "sim_speed_class": "速度クラス: {speedClass}",
+      "sim_ip_address": "IPアドレス: {ipAddress}",
+      "sim_imsi": "IMSI: {imsi}",
+      "sim_subscription": "サブスクリプション: {subscription}",
+      "air_usage_header": "通信量統計 IMSI: {imsi} ({period})",
+      "air_usage_upload": "アップロード: {bytes}",
+      "air_usage_download": "ダウンロード: {bytes}",
+      "air_usage_total": "合計: アップロード {upload}, ダウンロード {download}",
+      "no_sims_found": "SIMが見つかりません",
+      "no_stats_found": "指定期間の通信量データが見つかりません"
+    },
+    "logs": {
+      "fetching_sims": "SoracomからSIM一覧を取得中...",
+      "fetching_sim_detail": "SIM詳細情報を取得中: {simId}",
+      "fetching_air_usage": "通信量統計を取得中 IMSI: {imsi}",
+      "auth_success": "Soracom認証に成功しました"
+    }
   }
 }

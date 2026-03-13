@@ -27,5 +27,43 @@
     "completed": "Workflow completed",
     "loading_channel": "Loading channel information...",
     "channel_loaded": "Channel {name} loaded successfully"
+  },
+  "soracom": {
+    "errors": {
+      "auth_failed": "Soracom authentication failed: {error}",
+      "api_request_failed": "Soracom API request failed (HTTP {status}): {message}",
+      "missing_env": "Required environment variable is not set: {name}",
+      "sim_not_found": "SIM not found: {simId}",
+      "stats_fetch_failed": "Failed to fetch air usage stats: {error}",
+      "validation": {
+        "sim_id_empty": "SIM ID cannot be empty",
+        "sim_id_format": "SIM ID must be 18-22 digits (ICCID format)",
+        "imsi_empty": "IMSI cannot be empty",
+        "imsi_format": "IMSI must be exactly 15 digits",
+        "coverage_type_invalid": "Coverage type must be 'jp' or 'g'",
+        "stats_period_invalid": "Stats period must be 'day' or 'month'"
+      }
+    },
+    "messages": {
+      "sim_list_header": "Soracom SIM List ({count} items)",
+      "sim_detail_header": "SIM Details: {simId}",
+      "sim_status": "Status: {status}",
+      "sim_speed_class": "Speed Class: {speedClass}",
+      "sim_ip_address": "IP Address: {ipAddress}",
+      "sim_imsi": "IMSI: {imsi}",
+      "sim_subscription": "Subscription: {subscription}",
+      "air_usage_header": "Air Usage Stats for IMSI: {imsi} ({period})",
+      "air_usage_upload": "Upload: {bytes}",
+      "air_usage_download": "Download: {bytes}",
+      "air_usage_total": "Total: Upload {upload}, Download {download}",
+      "no_sims_found": "No SIMs found",
+      "no_stats_found": "No usage data found for the specified period"
+    },
+    "logs": {
+      "fetching_sims": "Fetching SIM list from Soracom...",
+      "fetching_sim_detail": "Fetching SIM details for: {simId}",
+      "fetching_air_usage": "Fetching air usage stats for IMSI: {imsi}",
+      "auth_success": "Soracom authentication successful"
+    }
   }
 }

@@ -8,10 +8,16 @@ import {
 } from "../i18n/mod.ts";
 import {
   channelIdSchema,
+  coverageTypeSchema,
   createChannelIdSchema,
+  createImsiSchema,
   createNonEmptyStringSchema,
+  createSimIdSchema,
   createUserIdSchema,
+  imsiSchema,
   nonEmptyStringSchema,
+  simIdSchema,
+  statsPeriodSchema,
   userIdSchema,
 } from "./schemas.ts";
 
@@ -257,5 +263,122 @@ Deno.test({
     }
 
     setLocale(originalLocale); // 元に戻す
+  },
+});
+
+// === Soracom バリデーションテスト ===
+
+Deno.test("simIdSchema: 正常なSIM ID（18桁）を検証", () => {
+  const result = simIdSchema.safeParse("894231002200001234");
+  assertEquals(result.success, true);
+});
+
+Deno.test("simIdSchema: 正常なSIM ID（22桁）を検証", () => {
+  const result = simIdSchema.safeParse("8942310022000012345678");
+  assertEquals(result.success, true);
+});
+
+Deno.test("simIdSchema: 不正なSIM ID（文字を含む）を拒否", () => {
+  const result = simIdSchema.safeParse("894231002200ABC");
+  assertEquals(result.success, false);
+});
+
+Deno.test("simIdSchema: 短すぎるSIM IDを拒否", () => {
+  const result = simIdSchema.safeParse("12345");
+  assertEquals(result.success, false);
+});
+
+Deno.test("simIdSchema: 空文字を拒否", () => {
+  const result = simIdSchema.safeParse("");
+  assertEquals(result.success, false);
+});
+
+Deno.test("imsiSchema: 正常なIMSI（15桁）を検証", () => {
+  const result = imsiSchema.safeParse("440101234567890");
+  assertEquals(result.success, true);
+});
+
+Deno.test("imsiSchema: 不正なIMSI（14桁）を拒否", () => {
+  const result = imsiSchema.safeParse("44010123456789");
+  assertEquals(result.success, false);
+});
+
+Deno.test("imsiSchema: 不正なIMSI（文字を含む）を拒否", () => {
+  const result = imsiSchema.safeParse("44010123456789A");
+  assertEquals(result.success, false);
+});
+
+Deno.test("imsiSchema: 空文字を拒否", () => {
+  const result = imsiSchema.safeParse("");
+  assertEquals(result.success, false);
+});
+
+Deno.test("coverageTypeSchema: 'jp'を検証", () => {
+  const result = coverageTypeSchema.safeParse("jp");
+  assertEquals(result.success, true);
+});
+
+Deno.test("coverageTypeSchema: 'g'を検証", () => {
+  const result = coverageTypeSchema.safeParse("g");
+  assertEquals(result.success, true);
+});
+
+Deno.test("coverageTypeSchema: 不正な値を拒否", () => {
+  const result = coverageTypeSchema.safeParse("us");
+  assertEquals(result.success, false);
+});
+
+Deno.test("statsPeriodSchema: 'day'を検証", () => {
+  const result = statsPeriodSchema.safeParse("day");
+  assertEquals(result.success, true);
+});
+
+Deno.test("statsPeriodSchema: 'month'を検証", () => {
+  const result = statsPeriodSchema.safeParse("month");
+  assertEquals(result.success, true);
+});
+
+Deno.test("statsPeriodSchema: 不正な値を拒否", () => {
+  const result = statsPeriodSchema.safeParse("week");
+  assertEquals(result.success, false);
+});
+
+Deno.test({
+  name: "simIdSchema: エラーメッセージが英語で表示される",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: () => {
+    setLocale("en");
+    const schema = createSimIdSchema();
+    const result = schema.safeParse("invalid");
+
+    assertEquals(result.success, false);
+    if (!result.success) {
+      assertEquals(
+        result.error.errors[0].message.includes("SIM ID"),
+        true,
+      );
+    }
+    setLocale(originalLocale);
+  },
+});
+
+Deno.test({
+  name: "imsiSchema: エラーメッセージが日本語で表示される",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: () => {
+    setLocale("ja");
+    const schema = createImsiSchema();
+    const result = schema.safeParse("invalid");
+
+    assertEquals(result.success, false);
+    if (!result.success) {
+      assertEquals(
+        result.error.errors[0].message.includes("IMSI"),
+        true,
+      );
+    }
+    setLocale(originalLocale);
   },
 });
