@@ -76,7 +76,13 @@
       "soracam_image_export_requested": "デバイス {deviceId} の画像エクスポートをリクエストしました",
       "soracam_image_export_status": "エクスポート状態: {status}",
       "soracam_image_export_url": "画像URL: {url}",
-      "soracam_image_export_processing": "画像エクスポート処理中です（エクスポートID: {exportId}）"
+      "soracam_image_export_processing": "画像エクスポート処理中です（エクスポートID: {exportId}）",
+      "sim_anomaly_header": ":rotating_light: SIM異常検知アラート: {total}台中{count}台のSIMに異常ステータスを検出",
+      "sim_anomaly_none": ":white_check_mark: 全{total}台のSIMは正常に動作しています",
+      "soracam_motion_header": ":movie_camera: 動体検知キャプチャ {deviceId}: {eventCount}件のイベント検出、{imageCount}枚の画像エクスポート",
+      "soracam_motion_none": ":white_check_mark: デバイス {deviceId} で過去1時間に動体検知イベントはありません",
+      "sim_usage_report_header": ":bar_chart: SIM通信量レポート ({count}台、期間: {period})",
+      "sim_usage_report_total": "全体合計: アップロード {upload}、ダウンロード {download}"
     },
     "logs": {
       "fetching_sims": "SoracomからSIM一覧を取得中...",
@@ -86,7 +92,10 @@
       "fetching_harvest_data": "Harvestデータを取得中 IMSI: {imsi}",
       "fetching_soracam_devices": "ソラカメデバイス一覧を取得中...",
       "fetching_soracam_events": "ソラカメイベントを取得中 デバイス: {deviceId}",
-      "exporting_soracam_image": "ソラカメ画像をエクスポート中 デバイス: {deviceId}"
+      "exporting_soracam_image": "ソラカメ画像をエクスポート中 デバイス: {deviceId}",
+      "checking_sim_anomaly": "SIM異常をチェック中...",
+      "checking_soracam_motion": "ソラカメ動体検知イベントをチェック中 デバイス: {deviceId}",
+      "generating_usage_report": "SIM通信量レポートを生成中（期間: {period}）..."
     }
   }
 }

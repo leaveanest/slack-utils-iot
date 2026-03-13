@@ -76,7 +76,13 @@
       "soracam_image_export_requested": "Image export requested for device: {deviceId}",
       "soracam_image_export_status": "Export Status: {status}",
       "soracam_image_export_url": "Image URL: {url}",
-      "soracam_image_export_processing": "Image export is still processing (Export ID: {exportId})"
+      "soracam_image_export_processing": "Image export is still processing (Export ID: {exportId})",
+      "sim_anomaly_header": ":rotating_light: SIM Anomaly Alert: {count} of {total} SIMs have abnormal status",
+      "sim_anomaly_none": ":white_check_mark: All {total} SIMs are operating normally",
+      "soracam_motion_header": ":movie_camera: Motion Capture for {deviceId}: {eventCount} events detected, {imageCount} images exported",
+      "soracam_motion_none": ":white_check_mark: No motion events detected for device {deviceId} in the past hour",
+      "sim_usage_report_header": ":bar_chart: SIM Usage Report ({count} SIMs, period: {period})",
+      "sim_usage_report_total": "Grand Total: Upload {upload}, Download {download}"
     },
     "logs": {
       "fetching_sims": "Fetching SIM list from Soracom...",
@@ -86,7 +92,10 @@
       "fetching_harvest_data": "Fetching Harvest data for IMSI: {imsi}",
       "fetching_soracam_devices": "Fetching SoraCam device list...",
       "fetching_soracam_events": "Fetching SoraCam events for device: {deviceId}",
-      "exporting_soracam_image": "Exporting SoraCam image for device: {deviceId}"
+      "exporting_soracam_image": "Exporting SoraCam image for device: {deviceId}",
+      "checking_sim_anomaly": "Checking SIM anomalies...",
+      "checking_soracam_motion": "Checking SoraCam motion events for device: {deviceId}",
+      "generating_usage_report": "Generating SIM usage report (period: {period})..."
     }
   }
 }

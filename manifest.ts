@@ -7,6 +7,9 @@ import { SoracomGetHarvestDataFunctionDefinition } from "./functions/soracom_get
 import { SoracomListSoraCamDevicesFunctionDefinition } from "./functions/soracom_list_soracam_devices/mod.ts";
 import { SoracomGetSoraCamEventsFunctionDefinition } from "./functions/soracom_get_soracam_events/mod.ts";
 import { SoracomExportSoraCamImageFunctionDefinition } from "./functions/soracom_export_soracam_image/mod.ts";
+import { SoracomSimAnomalyAlertFunctionDefinition } from "./functions/soracom_sim_anomaly_alert/mod.ts";
+import { SoracomSoraCamMotionCaptureFunctionDefinition } from "./functions/soracom_soracam_motion_capture/mod.ts";
+import { SoracomSimUsageReportFunctionDefinition } from "./functions/soracom_sim_usage_report/mod.ts";
 import ExampleWorkflow from "./workflows/example_workflow.ts";
 import SoracomListSimsWorkflow from "./workflows/soracom_list_sims_workflow.ts";
 import SoracomGetSimWorkflow from "./workflows/soracom_get_sim_workflow.ts";
@@ -15,6 +18,9 @@ import SoracomGetHarvestDataWorkflow from "./workflows/soracom_get_harvest_data_
 import SoracomListSoraCamDevicesWorkflow from "./workflows/soracom_list_soracam_devices_workflow.ts";
 import SoracomGetSoraCamEventsWorkflow from "./workflows/soracom_get_soracam_events_workflow.ts";
 import SoracomExportSoraCamImageWorkflow from "./workflows/soracom_export_soracam_image_workflow.ts";
+import SoracomSimAnomalyAlertWorkflow from "./workflows/soracom_sim_anomaly_alert_workflow.ts";
+import SoracomSoraCamMotionCaptureWorkflow from "./workflows/soracom_soracam_motion_capture_workflow.ts";
+import SoracomSimUsageReportWorkflow from "./workflows/soracom_sim_usage_report_workflow.ts";
 
 // Load from environment variables with fallback defaults
 const APP_NAME = Deno.env.get("SLACK_APP_NAME") || "Slack Utils Template";
@@ -27,23 +33,37 @@ export default Manifest({
   icon: "assets/icon.png",
   workflows: [
     ExampleWorkflow,
+    // SIM管理
     SoracomListSimsWorkflow,
     SoracomGetSimWorkflow,
     SoracomGetAirUsageWorkflow,
+    // Harvest Data
     SoracomGetHarvestDataWorkflow,
+    // ソラカメ
     SoracomListSoraCamDevicesWorkflow,
     SoracomGetSoraCamEventsWorkflow,
     SoracomExportSoraCamImageWorkflow,
+    // 複合ワークフロー
+    SoracomSimAnomalyAlertWorkflow,
+    SoracomSoraCamMotionCaptureWorkflow,
+    SoracomSimUsageReportWorkflow,
   ],
   functions: [
     ExampleFunctionDefinition,
+    // SIM管理
     SoracomListSimsFunctionDefinition,
     SoracomGetSimFunctionDefinition,
     SoracomGetAirUsageFunctionDefinition,
+    // Harvest Data
     SoracomGetHarvestDataFunctionDefinition,
+    // ソラカメ
     SoracomListSoraCamDevicesFunctionDefinition,
     SoracomGetSoraCamEventsFunctionDefinition,
     SoracomExportSoraCamImageFunctionDefinition,
+    // 複合ワークフロー
+    SoracomSimAnomalyAlertFunctionDefinition,
+    SoracomSoraCamMotionCaptureFunctionDefinition,
+    SoracomSimUsageReportFunctionDefinition,
   ],
   outgoingDomains: [
     "api.soracom.io",

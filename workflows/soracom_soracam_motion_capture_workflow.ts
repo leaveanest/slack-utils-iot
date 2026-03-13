@@ -1,0 +1,39 @@
+import { DefineWorkflow, Schema } from "deno-slack-sdk/mod.ts";
+import { SoracomSoraCamMotionCaptureFunctionDefinition } from "../functions/soracom_soracam_motion_capture/mod.ts";
+
+/**
+ * ソラカメ動体検知→画像キャプチャワークフロー
+ *
+ * 指定デバイスの動体検知イベントを取得し、
+ * 検出されたイベント時刻の画像を自動エクスポートしてチャンネルに投稿します。
+ * Scheduled Triggerで定期実行することを推奨します。
+ */
+const SoracomSoraCamMotionCaptureWorkflow = DefineWorkflow({
+  callback_id: "soracom_soracam_motion_capture_workflow",
+  title: "SoraCam Motion Capture",
+  description:
+    "Detect motion events and automatically capture images from the recording",
+  input_parameters: {
+    properties: {
+      device_id: {
+        type: Schema.types.string,
+        description: "SoraCam device ID",
+      },
+      channel_id: {
+        type: Schema.slack.types.channel_id,
+        description: "Target channel",
+      },
+    },
+    required: ["device_id", "channel_id"],
+  },
+});
+
+SoracomSoraCamMotionCaptureWorkflow.addStep(
+  SoracomSoraCamMotionCaptureFunctionDefinition,
+  {
+    device_id: SoracomSoraCamMotionCaptureWorkflow.inputs.device_id,
+    channel_id: SoracomSoraCamMotionCaptureWorkflow.inputs.channel_id,
+  },
+);
+
+export default SoracomSoraCamMotionCaptureWorkflow;
