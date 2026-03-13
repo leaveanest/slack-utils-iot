@@ -1,12 +1,20 @@
 import { Trigger } from "deno-slack-sdk/types.ts";
 import { TriggerTypes } from "deno-slack-api/mod.ts";
 import SoracomSimAnomalyAlertWorkflow from "../workflows/soracom_sim_anomaly_alert_workflow.ts";
+import {
+  ALERT_CHANNEL_ID,
+  SCHEDULE_START_TIME,
+} from "../lib/soracom/config.ts";
 
 /**
  * SIM異常検知アラート定期実行トリガー
  *
  * 毎時0分にSIM異常検知を実行し、結果をチャンネルに投稿します。
- * channel_idは利用環境に合わせて変更してください。
+ *
+ * 設定用環境変数:
+ * - SORACOM_ALERT_CHANNEL_ID: 通知先チャンネルID
+ * - SORACOM_DEFAULT_CHANNEL_ID: 共通フォールバック
+ * - SORACOM_SCHEDULE_START_TIME: スケジュール開始日時
  */
 const SoracomSimAnomalyAlertScheduledTrigger: Trigger<
   typeof SoracomSimAnomalyAlertWorkflow.definition
@@ -18,11 +26,11 @@ const SoracomSimAnomalyAlertScheduledTrigger: Trigger<
     `#/workflows/${SoracomSimAnomalyAlertWorkflow.definition.callback_id}`,
   inputs: {
     channel_id: {
-      value: "C0000000000", // デプロイ時に実際のチャンネルIDに変更
+      value: ALERT_CHANNEL_ID,
     },
   },
   schedule: {
-    start_time: "2026-01-01T00:00:00Z",
+    start_time: SCHEDULE_START_TIME,
     frequency: {
       type: "hourly",
       repeats_every: 1,

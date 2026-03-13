@@ -6,6 +6,13 @@
 
 export { createSoracomClientFromEnv, SoracomClient } from "./client.ts";
 export type { SoracomClientConfig } from "./client.ts";
+export {
+  ALERT_CHANNEL_ID,
+  getChannelId,
+  REPORT_CHANNEL_ID,
+  SCHEDULE_START_TIME,
+  SORACAM_CHANNEL_ID,
+} from "./config.ts";
 export type {
   AirStatsDataPoint,
   AirStatsResult,
