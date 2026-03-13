@@ -2,6 +2,7 @@ import { DefineFunction, Schema, SlackFunction } from "deno-slack-sdk/mod.ts";
 import { t } from "../../lib/i18n/mod.ts";
 import { createSoracomClientFromEnv } from "../../lib/soracom/mod.ts";
 import type { SoracomSim } from "../../lib/soracom/mod.ts";
+import { CONFIG_KEYS, getConfigValue } from "../../lib/soracom/datastore.ts";
 
 /** 異常とみなすSIMステータス一覧 */
 const ANOMALY_STATUSES = ["suspended", "terminated", "deactivated"];
@@ -97,6 +98,13 @@ export default SlackFunction(
     try {
       console.log(t("soracom.logs.checking_sim_anomaly"));
 
+      // Datastoreからチャンネルを解決（フォールバック: トリガーで指定された値）
+      const channelId = await getConfigValue(
+        client,
+        CONFIG_KEYS.ALERT_CHANNEL_ID,
+        inputs.channel_id,
+      );
+
       const soracomClient = createSoracomClientFromEnv();
       const result = await soracomClient.listSims(100);
 
@@ -108,7 +116,7 @@ export default SlackFunction(
 
       // 異常がある場合のみ投稿（正常時もオプションで通知可能）
       await client.chat.postMessage({
-        channel: inputs.channel_id,
+        channel: channelId,
         text: message,
       });
 

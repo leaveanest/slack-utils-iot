@@ -44,7 +44,9 @@
         "stats_period_invalid": "統計期間は 'day' または 'month' である必要があります",
         "soracam_device_id_empty": "ソラカメデバイスIDを空にすることはできません",
         "soracam_device_id_format": "ソラカメデバイスIDは英数字とハイフンである必要があります"
-      }
+      },
+      "config_invalid_key": "無効な設定キー: {key}。有効なキー: {validKeys}",
+      "datastore_write_failed": "設定のDatastore書き込みに失敗しました ({key}): {error}"
     },
     "messages": {
       "sim_list_header": "Soracom SIM一覧 ({count}件)",
@@ -82,7 +84,10 @@
       "soracam_motion_header": ":movie_camera: 動体検知キャプチャ {deviceId}: {eventCount}件のイベント検出、{imageCount}枚の画像エクスポート",
       "soracam_motion_none": ":white_check_mark: デバイス {deviceId} で過去1時間に動体検知イベントはありません",
       "sim_usage_report_header": ":bar_chart: SIM通信量レポート ({count}台、期間: {period})",
-      "sim_usage_report_total": "全体合計: アップロード {upload}、ダウンロード {download}"
+      "sim_usage_report_total": "全体合計: アップロード {upload}、ダウンロード {download}",
+      "config_updated": ":white_check_mark: 設定を更新しました: *{key}* = `{value}`",
+      "config_empty": "設定値が登録されていません",
+      "config_list_header": "現在の設定 ({count}件)"
     },
     "logs": {
       "fetching_sims": "SoracomからSIM一覧を取得中...",
@@ -95,7 +100,9 @@
       "exporting_soracam_image": "ソラカメ画像をエクスポート中 デバイス: {deviceId}",
       "checking_sim_anomaly": "SIM異常をチェック中...",
       "checking_soracam_motion": "ソラカメ動体検知イベントをチェック中 デバイス: {deviceId}",
-      "generating_usage_report": "SIM通信量レポートを生成中（期間: {period}）..."
+      "generating_usage_report": "SIM通信量レポートを生成中（期間: {period}）...",
+      "updating_config": "設定を更新中: {key}...",
+      "datastore_read_fallback": "Datastore読み込みに失敗しました ({key})、環境変数にフォールバック: {error}"
     }
   }
 }

@@ -6,6 +6,7 @@ import type {
   SoraCamImageExport,
 } from "../../lib/soracom/mod.ts";
 import { soraCamDeviceIdSchema } from "../../lib/validation/schemas.ts";
+import { CONFIG_KEYS, getConfigValue } from "../../lib/soracom/datastore.ts";
 
 /**
  * ソラカメ動体検知→画像キャプチャ複合関数定義
@@ -109,6 +110,13 @@ export default SlackFunction(
     try {
       const validDeviceId = soraCamDeviceIdSchema.parse(inputs.device_id);
 
+      // Datastoreからチャンネルを解決（フォールバック: トリガーで指定された値）
+      const channelId = await getConfigValue(
+        client,
+        CONFIG_KEYS.SORACAM_CHANNEL_ID,
+        inputs.channel_id,
+      );
+
       console.log(
         t("soracom.logs.checking_soracam_motion", {
           deviceId: validDeviceId,
@@ -162,7 +170,7 @@ export default SlackFunction(
       );
 
       await client.chat.postMessage({
-        channel: inputs.channel_id,
+        channel: channelId,
         text: message,
       });
 

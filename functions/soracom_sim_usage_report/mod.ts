@@ -5,6 +5,7 @@ import {
   formatBytes,
 } from "../../lib/soracom/mod.ts";
 import type { AirStatsResult, SoracomSim } from "../../lib/soracom/mod.ts";
+import { CONFIG_KEYS, getConfigValue } from "../../lib/soracom/datastore.ts";
 
 /**
  * SIMの通信量サマリー情報
@@ -151,6 +152,13 @@ export default SlackFunction(
         t("soracom.logs.generating_usage_report", { period }),
       );
 
+      // Datastoreからチャンネルを解決（フォールバック: トリガーで指定された値）
+      const channelId = await getConfigValue(
+        client,
+        CONFIG_KEYS.REPORT_CHANNEL_ID,
+        inputs.channel_id,
+      );
+
       const soracomClient = createSoracomClientFromEnv();
 
       // SIM一覧を取得
@@ -196,7 +204,7 @@ export default SlackFunction(
       }
 
       await client.chat.postMessage({
-        channel: inputs.channel_id,
+        channel: channelId,
         text: message,
       });
 

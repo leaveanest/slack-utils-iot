@@ -10,6 +10,7 @@ import { SoracomExportSoraCamImageFunctionDefinition } from "./functions/soracom
 import { SoracomSimAnomalyAlertFunctionDefinition } from "./functions/soracom_sim_anomaly_alert/mod.ts";
 import { SoracomSoraCamMotionCaptureFunctionDefinition } from "./functions/soracom_soracam_motion_capture/mod.ts";
 import { SoracomSimUsageReportFunctionDefinition } from "./functions/soracom_sim_usage_report/mod.ts";
+import { SoracomUpdateConfigFunctionDefinition } from "./functions/soracom_update_config/mod.ts";
 import ExampleWorkflow from "./workflows/example_workflow.ts";
 import SoracomListSimsWorkflow from "./workflows/soracom_list_sims_workflow.ts";
 import SoracomGetSimWorkflow from "./workflows/soracom_get_sim_workflow.ts";
@@ -21,6 +22,8 @@ import SoracomExportSoraCamImageWorkflow from "./workflows/soracom_export_soraca
 import SoracomSimAnomalyAlertWorkflow from "./workflows/soracom_sim_anomaly_alert_workflow.ts";
 import SoracomSoraCamMotionCaptureWorkflow from "./workflows/soracom_soracam_motion_capture_workflow.ts";
 import SoracomSimUsageReportWorkflow from "./workflows/soracom_sim_usage_report_workflow.ts";
+import SoracomUpdateConfigWorkflow from "./workflows/soracom_update_config_workflow.ts";
+import SoracomConfigDatastore from "./datastores/soracom_config.ts";
 
 // Load from environment variables with fallback defaults
 const APP_NAME = Deno.env.get("SLACK_APP_NAME") || "Slack Utils Template";
@@ -47,6 +50,11 @@ export default Manifest({
     SoracomSimAnomalyAlertWorkflow,
     SoracomSoraCamMotionCaptureWorkflow,
     SoracomSimUsageReportWorkflow,
+    // 設定管理
+    SoracomUpdateConfigWorkflow,
+  ],
+  datastores: [
+    SoracomConfigDatastore,
   ],
   functions: [
     ExampleFunctionDefinition,
@@ -64,6 +72,8 @@ export default Manifest({
     SoracomSimAnomalyAlertFunctionDefinition,
     SoracomSoraCamMotionCaptureFunctionDefinition,
     SoracomSimUsageReportFunctionDefinition,
+    // 設定管理
+    SoracomUpdateConfigFunctionDefinition,
   ],
   outgoingDomains: [
     "api.soracom.io",
@@ -75,5 +85,7 @@ export default Manifest({
     "channels:read",
     "groups:read",
     "users:read",
+    "datastore:read",
+    "datastore:write",
   ],
 });

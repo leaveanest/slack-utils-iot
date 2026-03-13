@@ -13,6 +13,12 @@ export {
   SCHEDULE_START_TIME,
   SORACAM_CHANNEL_ID,
 } from "./config.ts";
+export {
+  CONFIG_KEYS,
+  getAllConfigValues,
+  getConfigValue,
+  setConfigValue,
+} from "./datastore.ts";
 export type {
   AirStatsDataPoint,
   AirStatsResult,

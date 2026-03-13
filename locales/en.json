@@ -44,7 +44,9 @@
         "stats_period_invalid": "Stats period must be 'day' or 'month'",
       "soracam_device_id_empty": "SoraCam device ID cannot be empty",
       "soracam_device_id_format": "SoraCam device ID must be alphanumeric with hyphens"
-      }
+      },
+      "config_invalid_key": "Invalid config key: {key}. Valid keys: {validKeys}",
+      "datastore_write_failed": "Failed to write config to datastore ({key}): {error}"
     },
     "messages": {
       "sim_list_header": "Soracom SIM List ({count} items)",
@@ -82,7 +84,10 @@
       "soracam_motion_header": ":movie_camera: Motion Capture for {deviceId}: {eventCount} events detected, {imageCount} images exported",
       "soracam_motion_none": ":white_check_mark: No motion events detected for device {deviceId} in the past hour",
       "sim_usage_report_header": ":bar_chart: SIM Usage Report ({count} SIMs, period: {period})",
-      "sim_usage_report_total": "Grand Total: Upload {upload}, Download {download}"
+      "sim_usage_report_total": "Grand Total: Upload {upload}, Download {download}",
+      "config_updated": ":white_check_mark: Configuration updated: *{key}* = `{value}`",
+      "config_empty": "No configuration values set",
+      "config_list_header": "Current Configuration ({count} items)"
     },
     "logs": {
       "fetching_sims": "Fetching SIM list from Soracom...",
@@ -95,7 +100,9 @@
       "exporting_soracam_image": "Exporting SoraCam image for device: {deviceId}",
       "checking_sim_anomaly": "Checking SIM anomalies...",
       "checking_soracam_motion": "Checking SoraCam motion events for device: {deviceId}",
-      "generating_usage_report": "Generating SIM usage report (period: {period})..."
+      "generating_usage_report": "Generating SIM usage report (period: {period})...",
+      "updating_config": "Updating config: {key}...",
+      "datastore_read_fallback": "Datastore read failed for {key}, falling back to env: {error}"
     }
   }
 }
