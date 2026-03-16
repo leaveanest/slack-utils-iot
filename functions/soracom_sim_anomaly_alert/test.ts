@@ -1,8 +1,5 @@
 import { assertEquals } from "std/testing/asserts.ts";
-import {
-  filterAnomalousSims,
-  formatAnomalyAlertMessage,
-} from "./mod.ts";
+import { filterAnomalousSims, formatAnomalyAlertMessage } from "./mod.ts";
 import type { SoracomSim } from "../../lib/soracom/mod.ts";
 
 const baseSim: SoracomSim = {
@@ -69,7 +66,12 @@ Deno.test({
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     const anomalous: SoracomSim[] = [
-      { ...baseSim, simId: "sim-2", status: "suspended", tags: { name: "Broken-Device" } },
+      {
+        ...baseSim,
+        simId: "sim-2",
+        status: "suspended",
+        tags: { name: "Broken-Device" },
+      },
     ];
 
     const message = formatAnomalyAlertMessage(anomalous, 5);

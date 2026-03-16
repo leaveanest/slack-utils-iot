@@ -14,8 +14,7 @@ const SoracomGetAirUsageTrigger: Trigger<
   type: TriggerTypes.Shortcut,
   name: "Soracom Air Usage Stats",
   description: "Fetch air usage statistics for a SIM subscriber",
-  workflow:
-    `#/workflows/${SoracomGetAirUsageWorkflow.definition.callback_id}`,
+  workflow: `#/workflows/${SoracomGetAirUsageWorkflow.definition.callback_id}`,
   inputs: {
     imsi: {
       value: "",

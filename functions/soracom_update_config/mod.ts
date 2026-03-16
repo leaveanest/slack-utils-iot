@@ -74,7 +74,9 @@ export function validateConfigValue(
   configKey: string,
   configValue: string,
 ): void {
-  if (!VALID_CONFIG_KEYS.includes(configKey as typeof VALID_CONFIG_KEYS[number])) {
+  if (
+    !VALID_CONFIG_KEYS.includes(configKey as typeof VALID_CONFIG_KEYS[number])
+  ) {
     throw new Error(
       t("soracom.errors.config_invalid_key", {
         key: configKey,

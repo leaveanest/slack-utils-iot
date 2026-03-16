@@ -11,7 +11,6 @@ import { SoracomSimAnomalyAlertFunctionDefinition } from "./functions/soracom_si
 import { SoracomSoraCamMotionCaptureFunctionDefinition } from "./functions/soracom_soracam_motion_capture/mod.ts";
 import { SoracomSimUsageReportFunctionDefinition } from "./functions/soracom_sim_usage_report/mod.ts";
 import { SoracomUpdateConfigFunctionDefinition } from "./functions/soracom_update_config/mod.ts";
-import ExampleWorkflow from "./workflows/example_workflow.ts";
 import SoracomListSimsWorkflow from "./workflows/soracom_list_sims_workflow.ts";
 import SoracomGetSimWorkflow from "./workflows/soracom_get_sim_workflow.ts";
 import SoracomGetAirUsageWorkflow from "./workflows/soracom_get_air_usage_workflow.ts";
@@ -35,7 +34,6 @@ export default Manifest({
   description: APP_DESCRIPTION,
   icon: "assets/icon.png",
   workflows: [
-    ExampleWorkflow,
     // SIM管理
     SoracomListSimsWorkflow,
     SoracomGetSimWorkflow,

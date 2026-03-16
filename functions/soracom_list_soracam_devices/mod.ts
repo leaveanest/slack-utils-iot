@@ -60,9 +60,19 @@ export function formatSoraCamDeviceListMessage(
     return [
       `*${device.name || device.deviceId}*`,
       `  ID: ${device.deviceId}`,
-      `  ${t("soracom.messages.soracam_device_status", { status: device.status })}`,
-      `  ${t("soracom.messages.soracam_device_firmware", { version: device.firmwareVersion || "-" })}`,
-      `  ${t("soracom.messages.soracam_device_last_connected", { time: lastConnected })}`,
+      `  ${
+        t("soracom.messages.soracam_device_status", { status: device.status })
+      }`,
+      `  ${
+        t("soracom.messages.soracam_device_firmware", {
+          version: device.firmwareVersion || "-",
+        })
+      }`,
+      `  ${
+        t("soracom.messages.soracam_device_last_connected", {
+          time: lastConnected,
+        })
+      }`,
     ].join("\n");
   });
 

@@ -64,8 +64,14 @@ export function formatSimListMessage(
       `*${name}*`,
       `  ${t("soracom.messages.sim_imsi", { imsi: sim.imsi })}`,
       `  ${t("soracom.messages.sim_status", { status: sim.status })}`,
-      `  ${t("soracom.messages.sim_speed_class", { speedClass: sim.speedClass })}`,
-      `  ${t("soracom.messages.sim_ip_address", { ipAddress: sim.ipAddress || "-" })}`,
+      `  ${
+        t("soracom.messages.sim_speed_class", { speedClass: sim.speedClass })
+      }`,
+      `  ${
+        t("soracom.messages.sim_ip_address", {
+          ipAddress: sim.ipAddress || "-",
+        })
+      }`,
     ].join("\n");
   });
 

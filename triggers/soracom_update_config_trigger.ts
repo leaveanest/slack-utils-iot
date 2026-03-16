@@ -14,8 +14,7 @@ const SoracomUpdateConfigTrigger: Trigger<
   type: TriggerTypes.Shortcut,
   name: "Soracom Config",
   description: "Configure Soracom notification channels",
-  workflow:
-    `#/workflows/${SoracomUpdateConfigWorkflow.definition.callback_id}`,
+  workflow: `#/workflows/${SoracomUpdateConfigWorkflow.definition.callback_id}`,
   inputs: {
     interactivity: {
       value: TriggerContextData.Shortcut.interactivity,

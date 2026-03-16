@@ -67,7 +67,9 @@ export function formatSoraCamEventsMessage(
   const eventLines = events.map((event) => {
     const time = new Date(event.eventTime).toISOString();
     return [
-      `  ${t("soracom.messages.soracam_event_type", { type: event.eventType })}`,
+      `  ${
+        t("soracom.messages.soracam_event_type", { type: event.eventType })
+      }`,
       `  ${t("soracom.messages.soracam_event_time", { time })}`,
     ].join("\n");
   });

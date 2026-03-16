@@ -1,8 +1,5 @@
 import { assertEquals } from "std/testing/asserts.ts";
-import {
-  filterMotionEvents,
-  formatMotionCaptureMessage,
-} from "./mod.ts";
+import { filterMotionEvents, formatMotionCaptureMessage } from "./mod.ts";
 import type {
   SoraCamEvent,
   SoraCamImageExport,
@@ -16,10 +13,30 @@ Deno.test({
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     const events: SoraCamEvent[] = [
-      { deviceId: "dev-1", eventType: "motion", eventTime: 1700000000000, eventInfo: {} },
-      { deviceId: "dev-1", eventType: "sound", eventTime: 1700001000000, eventInfo: {} },
-      { deviceId: "dev-1", eventType: "person", eventTime: 1700002000000, eventInfo: {} },
-      { deviceId: "dev-1", eventType: "motion", eventTime: 1700003000000, eventInfo: {} },
+      {
+        deviceId: "dev-1",
+        eventType: "motion",
+        eventTime: 1700000000000,
+        eventInfo: {},
+      },
+      {
+        deviceId: "dev-1",
+        eventType: "sound",
+        eventTime: 1700001000000,
+        eventInfo: {},
+      },
+      {
+        deviceId: "dev-1",
+        eventType: "person",
+        eventTime: 1700002000000,
+        eventInfo: {},
+      },
+      {
+        deviceId: "dev-1",
+        eventType: "motion",
+        eventTime: 1700003000000,
+        eventInfo: {},
+      },
     ];
 
     const motionEvents = filterMotionEvents(events);
@@ -38,7 +55,12 @@ Deno.test({
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     const events: SoraCamEvent[] = [
-      { deviceId: "dev-1", eventType: "sound", eventTime: 1700001000000, eventInfo: {} },
+      {
+        deviceId: "dev-1",
+        eventType: "sound",
+        eventTime: 1700001000000,
+        eventInfo: {},
+      },
     ];
 
     const motionEvents = filterMotionEvents(events);
@@ -54,7 +76,12 @@ Deno.test({
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     const motionEvents: SoraCamEvent[] = [
-      { deviceId: "dev-1", eventType: "motion", eventTime: 1700000000000, eventInfo: {} },
+      {
+        deviceId: "dev-1",
+        eventType: "motion",
+        eventTime: 1700000000000,
+        eventInfo: {},
+      },
     ];
 
     const exports: SoraCamImageExport[] = [

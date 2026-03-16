@@ -129,7 +129,9 @@ export function formatUsageReportMessage(
     const upload = formatBytes(s.totalUpload);
     const download = formatBytes(s.totalDownload);
 
-    return `  *${s.name}* (${s.status})\n    ${t("soracom.messages.air_usage_upload", { bytes: upload })} / ${t("soracom.messages.air_usage_download", { bytes: download })}`;
+    return `  *${s.name}* (${s.status})\n    ${
+      t("soracom.messages.air_usage_upload", { bytes: upload })
+    } / ${t("soracom.messages.air_usage_download", { bytes: download })}`;
   });
 
   const grandTotal = t("soracom.messages.sim_usage_report_total", {

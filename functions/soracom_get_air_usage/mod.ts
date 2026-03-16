@@ -89,7 +89,9 @@ export function formatAirUsageMessage(
     const upload = formatBytes(dp.uploadByteSizeTotal);
     const download = formatBytes(dp.downloadByteSizeTotal);
 
-    return `${date}: ${t("soracom.messages.air_usage_upload", { bytes: upload })} / ${t("soracom.messages.air_usage_download", { bytes: download })}`;
+    return `${date}: ${
+      t("soracom.messages.air_usage_upload", { bytes: upload })
+    } / ${t("soracom.messages.air_usage_download", { bytes: download })}`;
   });
 
   const totalLine = t("soracom.messages.air_usage_total", {

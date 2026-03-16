@@ -1,8 +1,5 @@
 import { assertEquals } from "std/testing/asserts.ts";
-import {
-  buildSimUsageSummary,
-  formatUsageReportMessage,
-} from "./mod.ts";
+import { buildSimUsageSummary, formatUsageReportMessage } from "./mod.ts";
 import type { AirStatsResult, SoracomSim } from "../../lib/soracom/mod.ts";
 import type { SimUsageSummary } from "./mod.ts";
 
@@ -85,8 +82,20 @@ Deno.test({
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     const summaries: SimUsageSummary[] = [
-      { name: "Device-01", imsi: "440101234567890", status: "active", totalUpload: 1048576, totalDownload: 2097152 },
-      { name: "Device-02", imsi: "440109876543210", status: "active", totalUpload: 524288, totalDownload: 1048576 },
+      {
+        name: "Device-01",
+        imsi: "440101234567890",
+        status: "active",
+        totalUpload: 1048576,
+        totalDownload: 2097152,
+      },
+      {
+        name: "Device-02",
+        imsi: "440109876543210",
+        status: "active",
+        totalUpload: 524288,
+        totalDownload: 1048576,
+      },
     ];
 
     const message = formatUsageReportMessage(summaries, "day");

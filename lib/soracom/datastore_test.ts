@@ -16,23 +16,23 @@ function createMockClient(store: Record<string, Record<string, string>> = {}) {
   return {
     apps: {
       datastore: {
-        get: async (params: { datastore: string; id: string }) => {
+        get: (params: { datastore: string; id: string }) => {
           const item = store[params.id];
           if (item) {
-            return { ok: true, item };
+            return Promise.resolve({ ok: true, item });
           }
-          return { ok: false };
+          return Promise.resolve({ ok: false });
         },
-        put: async (
+        put: (
           params: { datastore: string; item: Record<string, unknown> },
         ) => {
           const key = params.item.config_key as string;
           store[key] = params.item as unknown as Record<string, string>;
-          return { ok: true };
+          return Promise.resolve({ ok: true });
         },
-        query: async (_params: { datastore: string }) => {
+        query: (_params: { datastore: string }) => {
           const items = Object.values(store);
-          return { ok: true, items };
+          return Promise.resolve({ ok: true, items });
         },
       },
     },
@@ -46,16 +46,16 @@ function createErrorClient() {
   return {
     apps: {
       datastore: {
-        get: async (_params: { datastore: string; id: string }) => {
-          throw new Error("Connection failed");
+        get: (_params: { datastore: string; id: string }) => {
+          return Promise.reject(new Error("Connection failed"));
         },
-        put: async (
+        put: (
           _params: { datastore: string; item: Record<string, unknown> },
         ) => {
-          return { ok: false, error: "write_error" };
+          return Promise.resolve({ ok: false, error: "write_error" });
         },
-        query: async (_params: { datastore: string }) => {
-          return { ok: false };
+        query: (_params: { datastore: string }) => {
+          return Promise.resolve({ ok: false });
         },
       },
     },

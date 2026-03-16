@@ -24,11 +24,11 @@ export type {
   AirStatsResult,
   HarvestDataEntry,
   HarvestDataResult,
-  SoracomApiError,
-  SoracomAuthResponse,
   SoraCamDevice,
   SoraCamEvent,
   SoraCamImageExport,
+  SoracomApiError,
+  SoracomAuthResponse,
   SoracomSim,
   SoracomSimListResult,
 } from "./types.ts";

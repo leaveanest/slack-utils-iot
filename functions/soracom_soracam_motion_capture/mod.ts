@@ -96,9 +96,15 @@ export function formatMotionCaptureMessage(
 
   const exportLines = exports.map((exp) => {
     if (exp.status === "completed" && exp.url) {
-      return `  :camera: ${t("soracom.messages.soracam_image_export_url", { url: exp.url })}`;
+      return `  :camera: ${
+        t("soracom.messages.soracam_image_export_url", { url: exp.url })
+      }`;
     }
-    return `  :hourglass_flowing_sand: ${t("soracom.messages.soracam_image_export_processing", { exportId: exp.exportId })}`;
+    return `  :hourglass_flowing_sand: ${
+      t("soracom.messages.soracam_image_export_processing", {
+        exportId: exp.exportId,
+      })
+    }`;
   });
 
   return `*${header}*\n\n${exportLines.join("\n")}`;

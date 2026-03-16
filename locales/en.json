@@ -42,8 +42,8 @@
         "imsi_format": "IMSI must be exactly 15 digits",
         "coverage_type_invalid": "Coverage type must be 'jp' or 'g'",
         "stats_period_invalid": "Stats period must be 'day' or 'month'",
-      "soracam_device_id_empty": "SoraCam device ID cannot be empty",
-      "soracam_device_id_format": "SoraCam device ID must be alphanumeric with hyphens"
+        "soracam_device_id_empty": "SoraCam device ID cannot be empty",
+        "soracam_device_id_format": "SoraCam device ID must be alphanumeric with hyphens"
       },
       "config_invalid_key": "Invalid config key: {key}. Valid keys: {validKeys}",
       "datastore_write_failed": "Failed to write config to datastore ({key}): {error}"

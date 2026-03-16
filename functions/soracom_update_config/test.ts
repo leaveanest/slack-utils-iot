@@ -1,8 +1,5 @@
 import { assertEquals, assertThrows } from "std/testing/asserts.ts";
-import {
-  formatConfigListMessage,
-  validateConfigValue,
-} from "./mod.ts";
+import { formatConfigListMessage, validateConfigValue } from "./mod.ts";
 
 Deno.test({
   name: "有効な設定キーとチャンネルIDでバリデーションが成功する",
