@@ -8,17 +8,17 @@ import { SoracomGetHarvestDataFunctionDefinition } from "../functions/soracom_ge
  */
 const SoracomGetHarvestDataWorkflow = DefineWorkflow({
   callback_id: "soracom_get_harvest_data_workflow",
-  title: "Soracom Harvest Data",
-  description: "Fetch and display Harvest Data for a subscriber",
+  title: "SORACOM Harvest Data確認",
+  description: "加入者の Harvest Data を取得して表示します",
   input_parameters: {
     properties: {
       imsi: {
         type: Schema.types.string,
-        description: "IMSI of the subscriber (15 digits)",
+        description: "加入者の IMSI（15 桁）",
       },
       channel_id: {
         type: Schema.slack.types.channel_id,
-        description: "Target channel",
+        description: "対象チャンネル",
       },
     },
     required: ["imsi", "channel_id"],

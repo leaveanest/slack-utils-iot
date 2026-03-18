@@ -10,6 +10,7 @@
  * ```
  */
 
+import { type EnvVars, getRuntimeEnv } from "../env.ts";
 import { t } from "../i18n/mod.ts";
 import SoracomConfigDatastore from "../../datastores/soracom_config.ts";
 
@@ -72,6 +73,7 @@ export async function getConfigValue(
   client: DatastoreClient,
   configKey: string,
   fallback = "C0000000000",
+  env?: EnvVars,
 ): Promise<string> {
   try {
     const result = await client.apps.datastore.get({
@@ -94,11 +96,11 @@ export async function getConfigValue(
   // 環境変数フォールバック
   const envKey = ENV_FALLBACK_MAP[configKey];
   if (envKey) {
-    const envValue = Deno.env.get(envKey);
+    const envValue = getRuntimeEnv(envKey, env);
     if (envValue) return envValue;
   }
 
-  const defaultValue = Deno.env.get("SORACOM_DEFAULT_CHANNEL_ID");
+  const defaultValue = getRuntimeEnv("SORACOM_DEFAULT_CHANNEL_ID", env);
   if (defaultValue) return defaultValue;
 
   return fallback;

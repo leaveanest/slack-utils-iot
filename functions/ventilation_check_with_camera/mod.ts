@@ -6,16 +6,19 @@ import {
   createSoracomClientFromEnv,
   filterAirQualityEntriesByTimeRange,
   getConfigValue,
+  resolveAirQualityCriteria,
   summarizeAirQualityEntries,
 } from "../../lib/soracom/mod.ts";
-import type { SoraCamImageExport } from "../../lib/soracom/mod.ts";
+import type {
+  AirQualityCriteria,
+  SoraCamImageExport,
+} from "../../lib/soracom/mod.ts";
 import {
   imsiSchema,
   soraCamDeviceIdSchema,
 } from "../../lib/validation/schemas.ts";
 import { formatVentilationEffectReviewMessage } from "../ventilation_effect_review/mod.ts";
 
-const DEFAULT_CO2_THRESHOLD = 1000;
 const DEFAULT_BEFORE_MINUTES = 60;
 const DEFAULT_AFTER_MINUTES = 60;
 
@@ -24,39 +27,54 @@ const DEFAULT_AFTER_MINUTES = 60;
  */
 export const VentilationCheckWithCameraFunctionDefinition = DefineFunction({
   callback_id: "ventilation_check_with_camera",
-  title: "Ventilation Check With Camera",
-  description:
-    "Compare air quality before and after ventilation and attach a nearby SoraCam snapshot",
+  title: "換気確認と画像確認",
+  description: "換気前後を比較し、近傍の SoraCam 画像を添えて確認します",
   source_file: "functions/ventilation_check_with_camera/mod.ts",
   input_parameters: {
     properties: {
       imsi: {
         type: Schema.types.string,
-        description: "IMSI of the subscriber (15 digits)",
+        description: "加入者の IMSI（15 桁）",
       },
       device_id: {
         type: Schema.types.string,
-        description: "SoraCam device ID",
+        description: "SoraCam デバイス ID",
       },
       channel_id: {
         type: Schema.slack.types.channel_id,
-        description: "Channel to post results",
+        description: "結果を投稿するチャンネル",
       },
       reference_time: {
         type: Schema.types.string,
-        description: "Reference time in ISO 8601 format",
+        description: "基準時刻（ISO 8601 形式）",
       },
       before_minutes: {
         type: Schema.types.number,
-        description: "Window length before the reference time in minutes",
+        description: "基準時刻より前の集計時間（分）",
       },
       after_minutes: {
         type: Schema.types.number,
-        description: "Window length after the reference time in minutes",
+        description: "基準時刻より後の集計時間（分）",
       },
       co2_threshold: {
         type: Schema.types.number,
-        description: "CO2 alert threshold in ppm",
+        description: "CO2 アラートしきい値（ppm）",
+      },
+      temperature_min: {
+        type: Schema.types.number,
+        description: "温度下限しきい値（C）",
+      },
+      temperature_max: {
+        type: Schema.types.number,
+        description: "温度上限しきい値（C）",
+      },
+      humidity_min: {
+        type: Schema.types.number,
+        description: "湿度下限しきい値（%）",
+      },
+      humidity_max: {
+        type: Schema.types.number,
+        description: "湿度上限しきい値（%）",
       },
     },
     required: ["imsi", "device_id", "channel_id", "reference_time"],
@@ -69,23 +87,23 @@ export const VentilationCheckWithCameraFunctionDefinition = DefineFunction({
       },
       device_id: {
         type: Schema.types.string,
-        description: "SoraCam device ID",
+        description: "SoraCam デバイス ID",
       },
       before_sample_count: {
         type: Schema.types.number,
-        description: "Number of samples before the reference time",
+        description: "基準時刻より前のサンプル数",
       },
       after_sample_count: {
         type: Schema.types.number,
-        description: "Number of samples after the reference time",
+        description: "基準時刻より後のサンプル数",
       },
       image_url: {
         type: Schema.types.string,
-        description: "Snapshot URL if available",
+        description: "スナップショット URL（取得できた場合）",
       },
       message: {
         type: Schema.types.string,
-        description: "Formatted result message",
+        description: "整形済みの結果メッセージ",
       },
     },
     required: [
@@ -103,7 +121,7 @@ export const VentilationCheckWithCameraFunctionDefinition = DefineFunction({
  * 換気確認結果にカメラ画像情報を付加したメッセージを生成します。
  *
  * @param reviewMessage - 換気効果レビュー本文
- * @param deviceId - SoraCam device ID
+ * @param deviceId - SoraCam デバイス ID
  * @param referenceTime - Snapshot reference time
  * @param exportResult - Image export result
  * @returns フォーマット済みメッセージ
@@ -154,23 +172,21 @@ export function formatVentilationCheckWithCameraMessage(
 
 export default SlackFunction(
   VentilationCheckWithCameraFunctionDefinition,
-  async ({ inputs, client }) => {
+  async ({ inputs, client, env }) => {
     try {
       const validImsi = imsiSchema.parse(inputs.imsi);
       const validDeviceId = soraCamDeviceIdSchema.parse(inputs.device_id);
       const referenceTime = Date.parse(inputs.reference_time);
       const beforeMinutes = inputs.before_minutes ?? DEFAULT_BEFORE_MINUTES;
       const afterMinutes = inputs.after_minutes ?? DEFAULT_AFTER_MINUTES;
-      const co2Threshold = inputs.co2_threshold ?? DEFAULT_CO2_THRESHOLD;
+      const criteria = buildCriteria(inputs);
 
       if (
         !Number.isFinite(referenceTime) ||
         !Number.isFinite(beforeMinutes) ||
         beforeMinutes <= 0 ||
         !Number.isFinite(afterMinutes) ||
-        afterMinutes <= 0 ||
-        !Number.isFinite(co2Threshold) ||
-        co2Threshold <= 0
+        afterMinutes <= 0
       ) {
         throw new Error(t("errors.invalid_input"));
       }
@@ -187,9 +203,10 @@ export default SlackFunction(
         client,
         CONFIG_KEYS.SORACAM_CHANNEL_ID,
         inputs.channel_id,
+        env,
       );
 
-      const soracomClient = createSoracomClientFromEnv();
+      const soracomClient = createSoracomClientFromEnv(env);
       const beforeStartTime = referenceTime - beforeMinutes * 60 * 1000;
       const afterEndTime = referenceTime + afterMinutes * 60 * 1000;
       const result = await soracomClient.getHarvestData(
@@ -204,7 +221,7 @@ export default SlackFunction(
           beforeStartTime,
           referenceTime,
         ),
-        co2Threshold,
+        criteria,
       );
       const afterSummary = summarizeAirQualityEntries(
         filterAirQualityEntriesByTimeRange(
@@ -212,7 +229,7 @@ export default SlackFunction(
           referenceTime,
           afterEndTime,
         ),
-        co2Threshold,
+        criteria,
       );
       const comparison = compareAirQualitySummaries(
         beforeSummary,
@@ -270,3 +287,25 @@ export default SlackFunction(
     }
   },
 );
+
+function buildCriteria(
+  inputs: {
+    co2_threshold?: number;
+    temperature_min?: number;
+    temperature_max?: number;
+    humidity_min?: number;
+    humidity_max?: number;
+  },
+): AirQualityCriteria {
+  try {
+    return resolveAirQualityCriteria({
+      co2Max: inputs.co2_threshold,
+      temperatureMin: inputs.temperature_min,
+      temperatureMax: inputs.temperature_max,
+      humidityMin: inputs.humidity_min,
+      humidityMax: inputs.humidity_max,
+    });
+  } catch {
+    throw new Error(t("errors.invalid_input"));
+  }
+}

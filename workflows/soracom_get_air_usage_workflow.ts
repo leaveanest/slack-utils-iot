@@ -8,21 +8,21 @@ import { SoracomGetAirUsageFunctionDefinition } from "../functions/soracom_get_a
  */
 const SoracomGetAirUsageWorkflow = DefineWorkflow({
   callback_id: "soracom_get_air_usage_workflow",
-  title: "Soracom Air Usage Stats",
-  description: "Fetch and display air usage statistics for a SIM subscriber",
+  title: "SORACOM Air通信量統計",
+  description: "SIM 回線の通信量統計を取得して表示します",
   input_parameters: {
     properties: {
       imsi: {
         type: Schema.types.string,
-        description: "IMSI of the subscriber (15 digits)",
+        description: "加入者の IMSI（15 桁）",
       },
       period: {
         type: Schema.types.string,
-        description: "Aggregation period: 'day' or 'month'",
+        description: "集計期間（day または month）",
       },
       channel_id: {
         type: Schema.slack.types.channel_id,
-        description: "Target channel",
+        description: "対象チャンネル",
       },
     },
     required: ["imsi", "period", "channel_id"],

@@ -3,14 +3,26 @@ import { t } from "../../lib/i18n/mod.ts";
 import {
   createSoracomClientFromEnv,
   listSensorProfiles,
+  resolveAirQualityCriteria,
   summarizeAirQualityEntries,
 } from "../../lib/soracom/mod.ts";
 import type {
+  AirQualityCriteria,
   AirQualityMetricSummary,
   AirQualitySummary,
+  SoracomSensorProfile,
 } from "../../lib/soracom/mod.ts";
 
-const DEFAULT_CO2_THRESHOLD = 1000;
+type AirQualityCriteriaView = {
+  co2Max: number;
+  temperatureMin: number;
+  temperatureMax: number;
+  humidityMin: number;
+  humidityMax: number;
+  co2ViolationCount: number;
+  temperatureViolationCount: number;
+  humidityViolationCount: number;
+};
 
 /**
  * CO2日次空気品質レポート関数定義
@@ -20,9 +32,8 @@ const DEFAULT_CO2_THRESHOLD = 1000;
  */
 export const Co2DailyAirQualityReportFunctionDefinition = DefineFunction({
   callback_id: "co2_daily_air_quality_report",
-  title: "CO2 Daily Air Quality Report",
-  description:
-    "Generate daily air quality summaries from stored sensor profiles",
+  title: "CO2日次空気品質レポート",
+  description: "登録済みセンサーの日次空気品質サマリーを生成します",
   source_file: "functions/co2_daily_air_quality_report/mod.ts",
   input_parameters: {
     properties: {},
@@ -32,19 +43,19 @@ export const Co2DailyAirQualityReportFunctionDefinition = DefineFunction({
     properties: {
       processed_count: {
         type: Schema.types.number,
-        description: "Number of sensor profiles processed",
+        description: "処理したセンサープロファイル数",
       },
       reported_count: {
         type: Schema.types.number,
-        description: "Number of reports posted",
+        description: "投稿したレポート数",
       },
       failed_count: {
         type: Schema.types.number,
-        description: "Number of failed reports",
+        description: "失敗したレポート数",
       },
       message: {
         type: Schema.types.string,
-        description: "Execution summary",
+        description: "実行サマリー",
       },
     },
     required: ["processed_count", "reported_count", "failed_count", "message"],
@@ -64,6 +75,8 @@ export function formatCo2DailyAirQualityReportMessage(
   imsi: string,
   summary: AirQualitySummary,
 ): string {
+  const criteria = getAirQualityCriteriaView(summary);
+
   if (summary.sampleCount === 0) {
     return [
       `*${
@@ -86,10 +99,7 @@ export function formatCo2DailyAirQualityReportMessage(
     t("soracom.messages.air_quality_sample_count", {
       count: summary.sampleCount,
     }),
-    t("soracom.messages.air_quality_threshold_exceeded", {
-      threshold: formatMetricNumber(summary.co2Threshold),
-      count: summary.co2ThresholdExceededCount,
-    }),
+    ...formatCriteriaViolationLines(criteria),
     formatMetricSummaryLine(
       t("soracom.messages.air_quality_metric_co2"),
       summary.co2,
@@ -148,6 +158,54 @@ function formatMetricNumber(value: number): string {
   return value.toFixed(1);
 }
 
+function formatCriteriaViolationLines(
+  criteria: AirQualityCriteriaView,
+): [string, string, string] {
+  return [
+    t("soracom.messages.air_quality_co2_violation_count", {
+      threshold: formatMetricNumber(criteria.co2Max),
+      count: criteria.co2ViolationCount,
+    }),
+    t("soracom.messages.air_quality_temperature_violation_count", {
+      min: formatMetricNumber(criteria.temperatureMin),
+      max: formatMetricNumber(criteria.temperatureMax),
+      count: criteria.temperatureViolationCount,
+    }),
+    t("soracom.messages.air_quality_humidity_violation_count", {
+      min: formatMetricNumber(criteria.humidityMin),
+      max: formatMetricNumber(criteria.humidityMax),
+      count: criteria.humidityViolationCount,
+    }),
+  ];
+}
+
+function getAirQualityCriteriaView(
+  summary: AirQualitySummary,
+): AirQualityCriteriaView {
+  return {
+    co2Max: summary.criteria.co2Max,
+    temperatureMin: summary.criteria.temperatureMin,
+    temperatureMax: summary.criteria.temperatureMax,
+    humidityMin: summary.criteria.humidityMin,
+    humidityMax: summary.criteria.humidityMax,
+    co2ViolationCount: summary.co2ThresholdExceededCount,
+    temperatureViolationCount: summary.temperatureOutOfRangeCount,
+    humidityViolationCount: summary.humidityOutOfRangeCount,
+  };
+}
+
+function buildProfileCriteria(
+  profile: SoracomSensorProfile,
+): AirQualityCriteria {
+  return resolveAirQualityCriteria({
+    co2Max: profile.co2Threshold,
+    temperatureMin: profile.temperatureMin,
+    temperatureMax: profile.temperatureMax,
+    humidityMin: profile.humidityMin,
+    humidityMax: profile.humidityMax,
+  });
+}
+
 function formatExecutionSummary(
   processedCount: number,
   reportedCount: number,
@@ -162,7 +220,7 @@ function formatExecutionSummary(
 
 export default SlackFunction(
   Co2DailyAirQualityReportFunctionDefinition,
-  async ({ client }) => {
+  async ({ client, env }) => {
     try {
       console.log(t("soracom.logs.loading_sensor_profiles"));
 
@@ -173,16 +231,13 @@ export default SlackFunction(
 
       const now = Date.now();
       const oneDayAgo = now - 24 * 60 * 60 * 1000;
-      const soracomClient = createSoracomClientFromEnv();
+      const soracomClient = createSoracomClientFromEnv(env);
       let reportedCount = 0;
       let failedCount = 0;
 
       for (const profile of profiles) {
         try {
-          const co2Threshold = profile.co2Threshold ?? DEFAULT_CO2_THRESHOLD;
-          if (!Number.isFinite(co2Threshold) || co2Threshold <= 0) {
-            throw new Error(t("errors.invalid_input"));
-          }
+          const criteria = buildProfileCriteria(profile);
 
           console.log(
             t("soracom.logs.generating_co2_daily_air_quality_report", {
@@ -196,10 +251,7 @@ export default SlackFunction(
             now,
           );
 
-          const summary = summarizeAirQualityEntries(
-            result.entries,
-            co2Threshold,
-          );
+          const summary = summarizeAirQualityEntries(result.entries, criteria);
           const message = formatCo2DailyAirQualityReportMessage(
             profile.sensorName,
             profile.imsi,

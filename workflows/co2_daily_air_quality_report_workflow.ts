@@ -9,8 +9,8 @@ import { Co2DailyAirQualityReportFunctionDefinition } from "../functions/co2_dai
  */
 const Co2DailyAirQualityReportWorkflow = DefineWorkflow({
   callback_id: "co2_daily_air_quality_report_workflow",
-  title: "CO2 Daily Air Quality Report",
-  description: "Generate daily summaries for configured CO2 sensors",
+  title: "CO2日次空気品質レポート",
+  description: "登録済みセンサーの日次空気品質サマリーを生成します",
   input_parameters: {
     properties: {},
     required: [],

@@ -8,21 +8,21 @@ import { SoracomUpdateSensorProfileFunctionDefinition } from "../functions/sorac
  */
 const SoracomUpdateSensorProfileWorkflow = DefineWorkflow({
   callback_id: "soracom_update_sensor_profile_workflow",
-  title: "Soracom Update Sensor Profile",
-  description: "Save daily-report sensor settings via modal form",
+  title: "センサープロファイル更新",
+  description: "モーダルフォームから日次レポート用センサー設定を保存します",
   input_parameters: {
     properties: {
       interactivity: {
         type: Schema.slack.types.interactivity,
-        description: "Interactivity context for opening form",
+        description: "フォームを開くためのインタラクティビティコンテキスト",
       },
       channel_id: {
         type: Schema.slack.types.channel_id,
-        description: "Channel where the shortcut was invoked",
+        description: "ショートカットが実行されたチャンネル",
       },
       user_id: {
         type: Schema.slack.types.user_id,
-        description: "User who triggered the workflow",
+        description: "実行したユーザー",
       },
     },
     required: ["interactivity", "channel_id", "user_id"],
@@ -60,6 +60,26 @@ const formStep = SoracomUpdateSensorProfileWorkflow.addStep(
           type: Schema.types.number,
         },
         {
+          name: "temperature_min",
+          title: "温度下限(C)",
+          type: Schema.types.number,
+        },
+        {
+          name: "temperature_max",
+          title: "温度上限(C)",
+          type: Schema.types.number,
+        },
+        {
+          name: "humidity_min",
+          title: "湿度下限(%)",
+          type: Schema.types.number,
+        },
+        {
+          name: "humidity_max",
+          title: "湿度上限(%)",
+          type: Schema.types.number,
+        },
+        {
           name: "soracam_device_id",
           title: "SoraCamデバイスID",
           type: Schema.types.string,
@@ -81,6 +101,10 @@ SoracomUpdateSensorProfileWorkflow.addStep(
     imsi: formStep.outputs.fields.imsi,
     report_channel_id: formStep.outputs.fields.report_channel_id,
     co2_threshold: formStep.outputs.fields.co2_threshold,
+    temperature_min: formStep.outputs.fields.temperature_min,
+    temperature_max: formStep.outputs.fields.temperature_max,
+    humidity_min: formStep.outputs.fields.humidity_min,
+    humidity_max: formStep.outputs.fields.humidity_max,
     soracam_device_id: formStep.outputs.fields.soracam_device_id,
     lookback_hours: formStep.outputs.fields.lookback_hours,
     channel_id: SoracomUpdateSensorProfileWorkflow.inputs.channel_id,

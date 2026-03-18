@@ -25,8 +25,25 @@ const summaryWithData: AirQualitySummary = {
     max: 56,
     average: 48.2,
   },
+  criteria: {
+    co2Max: 1000,
+    temperatureMin: 18,
+    temperatureMax: 28,
+    humidityMin: 40,
+    humidityMax: 70,
+  },
   co2Threshold: 1000,
   co2ThresholdExceededCount: 4,
+  temperatureRange: {
+    min: 18,
+    max: 28,
+  },
+  temperatureOutOfRangeCount: 1,
+  humidityRange: {
+    min: 40,
+    max: 70,
+  },
+  humidityOutOfRangeCount: 0,
 };
 
 const peakBucket: AirQualityBucketSummary = {
@@ -42,8 +59,25 @@ const peakBucket: AirQualityBucketSummary = {
     },
     temperature: {},
     humidity: {},
+    criteria: {
+      co2Max: 1000,
+      temperatureMin: 18,
+      temperatureMax: 28,
+      humidityMin: 40,
+      humidityMax: 70,
+    },
     co2Threshold: 1000,
     co2ThresholdExceededCount: 4,
+    temperatureRange: {
+      min: 18,
+      max: 28,
+    },
+    temperatureOutOfRangeCount: 1,
+    humidityRange: {
+      min: 40,
+      max: 70,
+    },
+    humidityOutOfRangeCount: 0,
   },
 };
 
@@ -63,6 +97,11 @@ Deno.test({
     assertEquals(message.includes("440101234567890"), true);
     assertEquals(message.includes("1275"), true);
     assertEquals(message.includes("2026-03-16T01:00:00.000Z"), true);
+    assertEquals(
+      message.includes("air_quality_humidity_violation_count") ||
+        (message.includes("40") && message.includes("70")),
+      true,
+    );
   },
 });
 
@@ -76,12 +115,14 @@ Deno.test({
     const message = formatMeetingRoomAirQualityReviewMessage(
       "440101234567890",
       {
+        ...summaryWithData,
         sampleCount: 0,
         co2: {},
         temperature: {},
         humidity: {},
-        co2Threshold: 1000,
         co2ThresholdExceededCount: 0,
+        temperatureOutOfRangeCount: 0,
+        humidityOutOfRangeCount: 0,
       },
       null,
     );

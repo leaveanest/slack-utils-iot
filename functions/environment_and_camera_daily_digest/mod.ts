@@ -3,16 +3,28 @@ import { t } from "../../lib/i18n/mod.ts";
 import {
   createSoracomClientFromEnv,
   listSensorProfiles,
+  resolveAirQualityCriteria,
   summarizeAirQualityEntries,
 } from "../../lib/soracom/mod.ts";
 import type {
+  AirQualityCriteria,
   AirQualityMetricSummary,
   AirQualitySummary,
   SoraCamEvent,
+  SoracomSensorProfile,
 } from "../../lib/soracom/mod.ts";
-
-const DEFAULT_CO2_THRESHOLD = 1000;
 const DEFAULT_LOOKBACK_HOURS = 24;
+
+type AirQualityCriteriaView = {
+  co2Max: number;
+  temperatureMin: number;
+  temperatureMax: number;
+  humidityMin: number;
+  humidityMax: number;
+  co2ViolationCount: number;
+  temperatureViolationCount: number;
+  humidityViolationCount: number;
+};
 
 /**
  * 環境とカメラの日次ダイジェスト関数定義
@@ -20,9 +32,9 @@ const DEFAULT_LOOKBACK_HOURS = 24;
 export const EnvironmentAndCameraDailyDigestFunctionDefinition = DefineFunction(
   {
     callback_id: "environment_and_camera_daily_digest",
-    title: "Environment And Camera Daily Digest",
+    title: "環境とカメラの日次ダイジェスト",
     description:
-      "Summarize daily air quality and SoraCam activity for stored sensor profiles",
+      "登録済みセンサープロファイルの空気品質と SoraCam 活動を日次要約します",
     source_file: "functions/environment_and_camera_daily_digest/mod.ts",
     input_parameters: {
       properties: {},
@@ -32,19 +44,19 @@ export const EnvironmentAndCameraDailyDigestFunctionDefinition = DefineFunction(
       properties: {
         processed_count: {
           type: Schema.types.number,
-          description: "Number of camera-linked profiles processed",
+          description: "処理したカメラ連携プロファイル数",
         },
         reported_count: {
           type: Schema.types.number,
-          description: "Number of digests posted",
+          description: "投稿したダイジェスト数",
         },
         failed_count: {
           type: Schema.types.number,
-          description: "Number of failed digests",
+          description: "失敗したダイジェスト数",
         },
         message: {
           type: Schema.types.string,
-          description: "Execution summary",
+          description: "実行サマリー",
         },
       },
       required: [
@@ -62,7 +74,7 @@ export const EnvironmentAndCameraDailyDigestFunctionDefinition = DefineFunction(
  *
  * @param sensorName - センサー表示名
  * @param imsi - IMSI
- * @param deviceId - SoraCam device ID
+ * @param deviceId - SoraCam デバイス ID
  * @param summary - Air quality summary
  * @param events - SoraCam events
  * @returns フォーマット済みメッセージ
@@ -74,6 +86,7 @@ export function formatEnvironmentAndCameraDailyDigestMessage(
   summary: AirQualitySummary,
   events: SoraCamEvent[],
 ): string {
+  const criteria = getAirQualityCriteriaView(summary);
   const header = `*${
     t("soracom.messages.environment_and_camera_daily_digest_header", {
       sensorName,
@@ -94,12 +107,7 @@ export function formatEnvironmentAndCameraDailyDigestMessage(
         count: summary.sampleCount,
       }),
     );
-    sections.push(
-      t("soracom.messages.air_quality_threshold_exceeded", {
-        threshold: formatMetricNumber(summary.co2Threshold),
-        count: summary.co2ThresholdExceededCount,
-      }),
-    );
+    sections.push(...formatCriteriaViolationLines(criteria));
     sections.push(
       formatMetricSummaryLine(
         t("soracom.messages.air_quality_metric_co2"),
@@ -210,6 +218,54 @@ function formatMetricNumber(value: number): string {
   return value.toFixed(1);
 }
 
+function formatCriteriaViolationLines(
+  criteria: AirQualityCriteriaView,
+): [string, string, string] {
+  return [
+    t("soracom.messages.air_quality_co2_violation_count", {
+      threshold: formatMetricNumber(criteria.co2Max),
+      count: criteria.co2ViolationCount,
+    }),
+    t("soracom.messages.air_quality_temperature_violation_count", {
+      min: formatMetricNumber(criteria.temperatureMin),
+      max: formatMetricNumber(criteria.temperatureMax),
+      count: criteria.temperatureViolationCount,
+    }),
+    t("soracom.messages.air_quality_humidity_violation_count", {
+      min: formatMetricNumber(criteria.humidityMin),
+      max: formatMetricNumber(criteria.humidityMax),
+      count: criteria.humidityViolationCount,
+    }),
+  ];
+}
+
+function getAirQualityCriteriaView(
+  summary: AirQualitySummary,
+): AirQualityCriteriaView {
+  return {
+    co2Max: summary.criteria.co2Max,
+    temperatureMin: summary.criteria.temperatureMin,
+    temperatureMax: summary.criteria.temperatureMax,
+    humidityMin: summary.criteria.humidityMin,
+    humidityMax: summary.criteria.humidityMax,
+    co2ViolationCount: summary.co2ThresholdExceededCount,
+    temperatureViolationCount: summary.temperatureOutOfRangeCount,
+    humidityViolationCount: summary.humidityOutOfRangeCount,
+  };
+}
+
+function buildProfileCriteria(
+  profile: SoracomSensorProfile,
+): AirQualityCriteria {
+  return resolveAirQualityCriteria({
+    co2Max: profile.co2Threshold,
+    temperatureMin: profile.temperatureMin,
+    temperatureMax: profile.temperatureMax,
+    humidityMin: profile.humidityMin,
+    humidityMax: profile.humidityMax,
+  });
+}
+
 function formatExecutionSummary(
   processedCount: number,
   reportedCount: number,
@@ -224,7 +280,7 @@ function formatExecutionSummary(
 
 export default SlackFunction(
   EnvironmentAndCameraDailyDigestFunctionDefinition,
-  async ({ client }) => {
+  async ({ client, env }) => {
     try {
       console.log(t("soracom.logs.loading_sensor_profiles"));
 
@@ -235,18 +291,16 @@ export default SlackFunction(
         throw new Error(t("soracom.errors.camera_sensor_profiles_not_found"));
       }
 
-      const soracomClient = createSoracomClientFromEnv();
+      const soracomClient = createSoracomClientFromEnv(env);
       let reportedCount = 0;
       let failedCount = 0;
 
       for (const profile of profiles) {
         try {
-          const co2Threshold = profile.co2Threshold ?? DEFAULT_CO2_THRESHOLD;
+          const criteria = buildProfileCriteria(profile);
           const lookbackHours = profile.lookbackHours ?? DEFAULT_LOOKBACK_HOURS;
 
           if (
-            !Number.isFinite(co2Threshold) ||
-            co2Threshold <= 0 ||
             !Number.isFinite(lookbackHours) ||
             lookbackHours <= 0 ||
             profile.soraCamDeviceId === undefined
@@ -273,10 +327,7 @@ export default SlackFunction(
             ),
           ]);
 
-          const summary = summarizeAirQualityEntries(
-            harvest.entries,
-            co2Threshold,
-          );
+          const summary = summarizeAirQualityEntries(harvest.entries, criteria);
           const sortedEvents = [...events].sort((left, right) =>
             right.eventTime - left.eventTime
           );

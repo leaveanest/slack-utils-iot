@@ -2,28 +2,28 @@ import { DefineWorkflow, Schema } from "deno-slack-sdk/mod.ts";
 import { SoracomUpdateConfigFunctionDefinition } from "../functions/soracom_update_config/mod.ts";
 
 /**
- * Soracom設定更新ワークフロー
+ * SORACOM設定更新ワークフロー
  *
  * ショートカットから起動し、モーダルフォームで設定キーとチャンネルを選択して
  * Datastoreに保存します。
  */
 const SoracomUpdateConfigWorkflow = DefineWorkflow({
   callback_id: "soracom_update_config_workflow",
-  title: "Soracom Update Config",
-  description: "Update Soracom configuration values via modal form",
+  title: "SORACOM設定更新",
+  description: "モーダルフォームから SORACOM 設定を更新します",
   input_parameters: {
     properties: {
       interactivity: {
         type: Schema.slack.types.interactivity,
-        description: "Interactivity context for opening form",
+        description: "フォームを開くためのインタラクティビティコンテキスト",
       },
       channel_id: {
         type: Schema.slack.types.channel_id,
-        description: "Channel where the shortcut was invoked",
+        description: "ショートカットが実行されたチャンネル",
       },
       user_id: {
         type: Schema.slack.types.user_id,
-        description: "User who triggered the workflow",
+        description: "実行したユーザー",
       },
     },
     required: ["interactivity", "channel_id", "user_id"],
@@ -34,7 +34,7 @@ const SoracomUpdateConfigWorkflow = DefineWorkflow({
 const formStep = SoracomUpdateConfigWorkflow.addStep(
   Schema.slack.functions.OpenForm,
   {
-    title: "Soracom設定",
+    title: "SORACOM設定",
     submit_label: "保存",
     description: "通知先チャンネルを設定します",
     interactivity: SoracomUpdateConfigWorkflow.inputs.interactivity,

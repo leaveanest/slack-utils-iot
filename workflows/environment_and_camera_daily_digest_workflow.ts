@@ -6,9 +6,8 @@ import { EnvironmentAndCameraDailyDigestFunctionDefinition } from "../functions/
  */
 const EnvironmentAndCameraDailyDigestWorkflow = DefineWorkflow({
   callback_id: "environment_and_camera_daily_digest_workflow",
-  title: "Environment And Camera Daily Digest",
-  description:
-    "Summarize daily air quality and camera activity for configured sensors",
+  title: "環境とカメラの日次ダイジェスト",
+  description: "登録済みセンサーの空気品質とカメラ活動を日次要約します",
   input_parameters: {
     properties: {},
     required: [],

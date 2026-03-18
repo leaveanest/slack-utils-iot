@@ -11,19 +11,17 @@ const ANOMALY_STATUSES = ["suspended", "terminated", "deactivated"];
  * SIM異常検知アラート関数定義
  *
  * SIM一覧を取得し、異常ステータスのSIMを検出してSlackチャンネルに警告を投稿します。
- * Scheduled Triggerと組み合わせて定期監視に利用できます。
  */
 export const SoracomSimAnomalyAlertFunctionDefinition = DefineFunction({
   callback_id: "soracom_sim_anomaly_alert",
-  title: "Soracom SIM Anomaly Alert",
-  description:
-    "Detect SIMs with abnormal status and post an alert to the channel",
+  title: "SIM異常検知",
+  description: "異常ステータスの SIM を検出して通知します",
   source_file: "functions/soracom_sim_anomaly_alert/mod.ts",
   input_parameters: {
     properties: {
       channel_id: {
         type: Schema.slack.types.channel_id,
-        description: "Channel to post alerts",
+        description: "アラートを投稿するチャンネル",
       },
     },
     required: ["channel_id"],
@@ -32,15 +30,15 @@ export const SoracomSimAnomalyAlertFunctionDefinition = DefineFunction({
     properties: {
       anomaly_count: {
         type: Schema.types.number,
-        description: "Number of anomalous SIMs detected",
+        description: "検出した異常 SIM 数",
       },
       total_count: {
         type: Schema.types.number,
-        description: "Total number of SIMs checked",
+        description: "確認した SIM の総数",
       },
       message: {
         type: Schema.types.string,
-        description: "Alert message",
+        description: "アラートメッセージ",
       },
     },
     required: ["anomaly_count", "total_count", "message"],
@@ -96,7 +94,7 @@ export function formatAnomalyAlertMessage(
 
 export default SlackFunction(
   SoracomSimAnomalyAlertFunctionDefinition,
-  async ({ inputs, client }) => {
+  async ({ inputs, client, env }) => {
     try {
       console.log(t("soracom.logs.checking_sim_anomaly"));
 
@@ -105,9 +103,10 @@ export default SlackFunction(
         client,
         CONFIG_KEYS.ALERT_CHANNEL_ID,
         inputs.channel_id,
+        env,
       );
 
-      const soracomClient = createSoracomClientFromEnv();
+      const soracomClient = createSoracomClientFromEnv(env);
       const result = await soracomClient.listSims(100);
 
       const anomalousSims = filterAnomalousSims(result.sims);

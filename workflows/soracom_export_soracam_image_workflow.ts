@@ -8,17 +8,17 @@ import { SoracomExportSoraCamImageFunctionDefinition } from "../functions/soraco
  */
 const SoracomExportSoraCamImageWorkflow = DefineWorkflow({
   callback_id: "soracom_export_soracam_image_workflow",
-  title: "SoraCam Image Export",
-  description: "Export an image from a SoraCam device recording",
+  title: "SoraCam画像エクスポート",
+  description: "SoraCam 録画から画像を切り出して共有します",
   input_parameters: {
     properties: {
       device_id: {
         type: Schema.types.string,
-        description: "SoraCam device ID",
+        description: "SoraCam デバイス ID",
       },
       channel_id: {
         type: Schema.slack.types.channel_id,
-        description: "Target channel",
+        description: "対象チャンネル",
       },
     },
     required: ["device_id", "channel_id"],

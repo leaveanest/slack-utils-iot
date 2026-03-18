@@ -11,15 +11,15 @@ import { channelIdSchema } from "../../lib/validation/schemas.ts";
 const VALID_CONFIG_KEYS = Object.values(CONFIG_KEYS);
 
 /**
- * Soracom設定更新関数定義
+ * SORACOM設定更新関数定義
  *
  * Datastoreに設定値を保存/更新します。
  * 設定キーと値を指定して実行します。
  */
 export const SoracomUpdateConfigFunctionDefinition = DefineFunction({
   callback_id: "soracom_update_config",
-  title: "Soracom Update Config",
-  description: "Update Soracom configuration values in the datastore",
+  title: "SORACOM設定更新",
+  description: "SORACOM の設定値を Datastore で更新します",
   source_file: "functions/soracom_update_config/mod.ts",
   input_parameters: {
     properties: {
@@ -31,15 +31,15 @@ export const SoracomUpdateConfigFunctionDefinition = DefineFunction({
       },
       config_value: {
         type: Schema.types.string,
-        description: "Configuration value (e.g., channel ID)",
+        description: "設定値（例: チャンネル ID）",
       },
       channel_id: {
         type: Schema.slack.types.channel_id,
-        description: "Channel to post confirmation",
+        description: "確認メッセージを投稿するチャンネル",
       },
       user_id: {
         type: Schema.slack.types.user_id,
-        description: "User who triggered the update",
+        description: "更新を実行したユーザー",
       },
     },
     required: ["config_key", "config_value", "channel_id", "user_id"],
@@ -48,15 +48,15 @@ export const SoracomUpdateConfigFunctionDefinition = DefineFunction({
     properties: {
       config_key: {
         type: Schema.types.string,
-        description: "Updated config key",
+        description: "更新した設定キー",
       },
       config_value: {
         type: Schema.types.string,
-        description: "Updated config value",
+        description: "更新した設定値",
       },
       message: {
         type: Schema.types.string,
-        description: "Confirmation message",
+        description: "確認メッセージ",
       },
     },
     required: ["config_key", "config_value", "message"],

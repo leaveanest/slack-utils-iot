@@ -16,19 +16,18 @@ import { CONFIG_KEYS, getConfigValue } from "../../lib/soracom/datastore.ts";
  */
 export const SoracomSoraCamMotionCaptureFunctionDefinition = DefineFunction({
   callback_id: "soracom_soracam_motion_capture",
-  title: "SoraCam Motion Capture",
-  description:
-    "Detect motion events and automatically export images from the recording",
+  title: "SoraCam動体検知画像確認",
+  description: "動体検知イベントを見つけ、録画から画像を切り出します",
   source_file: "functions/soracom_soracam_motion_capture/mod.ts",
   input_parameters: {
     properties: {
       device_id: {
         type: Schema.types.string,
-        description: "SoraCam device ID",
+        description: "SoraCam デバイス ID",
       },
       channel_id: {
         type: Schema.slack.types.channel_id,
-        description: "Channel to post results",
+        description: "結果を投稿するチャンネル",
       },
     },
     required: ["device_id", "channel_id"],
@@ -37,19 +36,19 @@ export const SoracomSoraCamMotionCaptureFunctionDefinition = DefineFunction({
     properties: {
       device_id: {
         type: Schema.types.string,
-        description: "Device ID",
+        description: "デバイス ID",
       },
       event_count: {
         type: Schema.types.number,
-        description: "Number of motion events detected",
+        description: "検出した動体イベント数",
       },
       exported_images: {
         type: Schema.types.number,
-        description: "Number of images exported",
+        description: "エクスポートした画像数",
       },
       message: {
         type: Schema.types.string,
-        description: "Result message",
+        description: "結果メッセージ",
       },
     },
     required: ["device_id", "event_count", "exported_images", "message"],
@@ -112,7 +111,7 @@ export function formatMotionCaptureMessage(
 
 export default SlackFunction(
   SoracomSoraCamMotionCaptureFunctionDefinition,
-  async ({ inputs, client }) => {
+  async ({ inputs, client, env }) => {
     try {
       const validDeviceId = soraCamDeviceIdSchema.parse(inputs.device_id);
 
@@ -121,6 +120,7 @@ export default SlackFunction(
         client,
         CONFIG_KEYS.SORACAM_CHANNEL_ID,
         inputs.channel_id,
+        env,
       );
 
       console.log(
@@ -129,7 +129,7 @@ export default SlackFunction(
         }),
       );
 
-      const soracomClient = createSoracomClientFromEnv();
+      const soracomClient = createSoracomClientFromEnv(env);
 
       // 過去1時間のイベントを取得
       const now = Date.now();

@@ -6,6 +6,10 @@ import {
 } from "../../lib/soracom/mod.ts";
 import type { AirStatsResult, SoracomSim } from "../../lib/soracom/mod.ts";
 import { CONFIG_KEYS, getConfigValue } from "../../lib/soracom/datastore.ts";
+import { statsPeriodSchema } from "../../lib/validation/schemas.ts";
+
+const STATS_PERIOD_OPTIONS = ["day", "month"] as const;
+type StatsPeriod = typeof STATS_PERIOD_OPTIONS[number];
 
 /**
  * SIMの通信量サマリー情報
@@ -27,23 +31,22 @@ export interface SimUsageSummary {
  * SIM通信量サマリーレポート関数定義
  *
  * 全SIMの通信量統計を取得し、サマリーレポートとしてSlackチャンネルに投稿します。
- * Scheduled Triggerと組み合わせて週次/月次レポートに利用できます。
  */
 export const SoracomSimUsageReportFunctionDefinition = DefineFunction({
   callback_id: "soracom_sim_usage_report",
-  title: "Soracom SIM Usage Report",
-  description:
-    "Generate a usage summary report for all SIMs and post to channel",
+  title: "SIM通信量レポート",
+  description: "全 SIM の通信量レポートを生成して共有します",
   source_file: "functions/soracom_sim_usage_report/mod.ts",
   input_parameters: {
     properties: {
       channel_id: {
         type: Schema.slack.types.channel_id,
-        description: "Channel to post report",
+        description: "レポートを投稿するチャンネル",
       },
       period: {
         type: Schema.types.string,
-        description: "Report period: 'day' or 'month'",
+        description: "集計期間（day または month）",
+        enum: STATS_PERIOD_OPTIONS,
       },
     },
     required: ["channel_id", "period"],
@@ -52,19 +55,19 @@ export const SoracomSimUsageReportFunctionDefinition = DefineFunction({
     properties: {
       sim_count: {
         type: Schema.types.number,
-        description: "Number of SIMs in report",
+        description: "レポート対象の SIM 数",
       },
       total_upload: {
         type: Schema.types.string,
-        description: "Total upload across all SIMs (formatted)",
+        description: "全 SIM の総アップロード量（整形済み）",
       },
       total_download: {
         type: Schema.types.string,
-        description: "Total download across all SIMs (formatted)",
+        description: "全 SIM の総ダウンロード量（整形済み）",
       },
       message: {
         type: Schema.types.string,
-        description: "Formatted report message",
+        description: "整形済みのレポートメッセージ",
       },
     },
     required: ["sim_count", "total_upload", "total_download", "message"],
@@ -92,7 +95,7 @@ export function buildSimUsageSummary(
 
   return {
     name: sim.tags?.name || sim.simId,
-    imsi: sim.imsi,
+    imsi: sim.imsi || sim.simId,
     status: sim.status,
     totalUpload,
     totalDownload,
@@ -109,9 +112,25 @@ export function buildSimUsageSummary(
 export function formatUsageReportMessage(
   summaries: SimUsageSummary[],
   period: string,
+  options: {
+    totalSimCount?: number;
+    activeSimCount?: number;
+  } = {},
 ): string {
   if (summaries.length === 0) {
-    return t("soracom.messages.no_sims_found");
+    if ((options.totalSimCount ?? 0) === 0) {
+      return t("soracom.messages.no_sims_found");
+    }
+
+    if ((options.activeSimCount ?? 0) === 0) {
+      return t("soracom.messages.no_active_sims_found", {
+        count: options.totalSimCount ?? 0,
+      });
+    }
+
+    return t("soracom.messages.sim_usage_report_stats_unavailable", {
+      count: options.activeSimCount ?? 0,
+    });
   }
 
   let grandTotalUpload = 0;
@@ -144,11 +163,9 @@ export function formatUsageReportMessage(
 
 export default SlackFunction(
   SoracomSimUsageReportFunctionDefinition,
-  async ({ inputs, client }) => {
+  async ({ inputs, client, env }) => {
     try {
-      const period = (inputs.period === "month" ? "month" : "day") as
-        | "day"
-        | "month";
+      const period = statsPeriodSchema.parse(inputs.period) as StatsPeriod;
 
       console.log(
         t("soracom.logs.generating_usage_report", { period }),
@@ -159,9 +176,10 @@ export default SlackFunction(
         client,
         CONFIG_KEYS.REPORT_CHANNEL_ID,
         inputs.channel_id,
+        env,
       );
 
-      const soracomClient = createSoracomClientFromEnv();
+      const soracomClient = createSoracomClientFromEnv(env);
 
       // SIM一覧を取得
       const simResult = await soracomClient.listSims(100);
@@ -180,8 +198,8 @@ export default SlackFunction(
 
       for (const sim of activeSims) {
         try {
-          const stats = await soracomClient.getAirUsage(
-            sim.imsi,
+          const stats = await soracomClient.getAirUsageOfSim(
+            sim.simId,
             period,
             from,
             now,
@@ -190,13 +208,16 @@ export default SlackFunction(
         } catch (error) {
           // 個別SIMの取得失敗はスキップしてレポートを続行
           console.warn(
-            `Failed to get usage for ${sim.imsi}:`,
+            `Failed to get usage for ${sim.simId}:`,
             error instanceof Error ? error.message : String(error),
           );
         }
       }
 
-      const message = formatUsageReportMessage(summaries, period);
+      const message = formatUsageReportMessage(summaries, period, {
+        totalSimCount: simResult.sims.length,
+        activeSimCount: activeSims.length,
+      });
 
       let grandTotalUpload = 0;
       let grandTotalDownload = 0;

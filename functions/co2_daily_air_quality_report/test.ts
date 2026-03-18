@@ -1,4 +1,5 @@
 import { assertEquals } from "std/testing/asserts.ts";
+import { getLocale, setLocale, t } from "../../lib/i18n/mod.ts";
 import type { AirQualitySummary } from "../../lib/soracom/mod.ts";
 import { formatCo2DailyAirQualityReportMessage } from "./mod.ts";
 
@@ -22,8 +23,25 @@ const summaryWithData: AirQualitySummary = {
     max: 55,
     average: 49.4,
   },
+  criteria: {
+    co2Max: 1000,
+    temperatureMin: 18,
+    temperatureMax: 28,
+    humidityMin: 40,
+    humidityMax: 70,
+  },
   co2Threshold: 1000,
   co2ThresholdExceededCount: 3,
+  temperatureRange: {
+    min: 18,
+    max: 28,
+  },
+  temperatureOutOfRangeCount: 0,
+  humidityRange: {
+    min: 40,
+    max: 70,
+  },
+  humidityOutOfRangeCount: 0,
 };
 
 Deno.test({
@@ -45,6 +63,11 @@ Deno.test({
     assertEquals(message.includes("CO2"), true);
     assertEquals(message.includes("1250"), true);
     assertEquals(message.includes("23.5"), true);
+    assertEquals(
+      message.includes("air_quality_temperature_violation_count") ||
+        (message.includes("18") && message.includes("28")),
+      true,
+    );
   },
 });
 
@@ -59,12 +82,14 @@ Deno.test({
       "会議室CO2センサー",
       "440101234567890",
       {
+        ...summaryWithData,
         sampleCount: 0,
         co2: {},
         temperature: {},
         humidity: {},
-        co2Threshold: 1000,
         co2ThresholdExceededCount: 0,
+        temperatureOutOfRangeCount: 0,
+        humidityOutOfRangeCount: 0,
       },
     );
 
@@ -80,15 +105,26 @@ Deno.test({
   fn: async () => {
     await new Promise((resolve) => setTimeout(resolve, 100));
 
-    const message = formatCo2DailyAirQualityReportMessage(
-      "会議室CO2センサー",
-      "440101234567890",
-      {
-        ...summaryWithData,
-        humidity: {},
-      },
-    );
+    const originalLocale = getLocale() as "en" | "ja";
 
-    assertEquals(message.includes("Humidity"), true);
+    try {
+      setLocale("ja");
+
+      const message = formatCo2DailyAirQualityReportMessage(
+        "会議室CO2センサー",
+        "440101234567890",
+        {
+          ...summaryWithData,
+          humidity: {},
+        },
+      );
+
+      assertEquals(
+        message.includes(t("soracom.messages.air_quality_metric_humidity")),
+        true,
+      );
+    } finally {
+      setLocale(originalLocale);
+    }
   },
 });

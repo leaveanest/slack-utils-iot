@@ -8,18 +8,18 @@ import { simIdSchema } from "../../lib/validation/schemas.ts";
  */
 export const SoracomGetSimFunctionDefinition = DefineFunction({
   callback_id: "soracom_get_sim",
-  title: "Soracom SIM Details",
-  description: "Fetch details for a specific SIM from Soracom",
+  title: "SORACOM SIM詳細",
+  description: "指定した SIM の詳細を取得して表示します",
   source_file: "functions/soracom_get_sim/mod.ts",
   input_parameters: {
     properties: {
       sim_id: {
         type: Schema.types.string,
-        description: "Soracom SIM ID (ICCID)",
+        description: "SORACOM SIM ID（ICCID）",
       },
       channel_id: {
         type: Schema.slack.types.channel_id,
-        description: "Channel to post results",
+        description: "結果を投稿するチャンネル",
       },
     },
     required: ["sim_id", "channel_id"],
@@ -36,19 +36,19 @@ export const SoracomGetSimFunctionDefinition = DefineFunction({
       },
       status: {
         type: Schema.types.string,
-        description: "SIM status",
+        description: "SIM ステータス",
       },
       speed_class: {
         type: Schema.types.string,
-        description: "Speed class",
+        description: "速度クラス",
       },
       ip_address: {
         type: Schema.types.string,
-        description: "IP address",
+        description: "IP アドレス",
       },
       message: {
         type: Schema.types.string,
-        description: "Formatted SIM detail message",
+        description: "整形済みの SIM 詳細メッセージ",
       },
     },
     required: ["sim_id", "status", "message"],
@@ -92,7 +92,7 @@ export function formatSimDetailMessage(
 
 export default SlackFunction(
   SoracomGetSimFunctionDefinition,
-  async ({ inputs, client }) => {
+  async ({ inputs, client, env }) => {
     try {
       const validSimId = simIdSchema.parse(inputs.sim_id);
 
@@ -100,7 +100,7 @@ export default SlackFunction(
         t("soracom.logs.fetching_sim_detail", { simId: validSimId }),
       );
 
-      const soracomClient = createSoracomClientFromEnv();
+      const soracomClient = createSoracomClientFromEnv(env);
       const sim = await soracomClient.getSim(validSimId);
 
       const message = formatSimDetailMessage(sim);

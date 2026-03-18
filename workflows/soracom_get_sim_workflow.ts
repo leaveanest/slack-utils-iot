@@ -8,17 +8,17 @@ import { SoracomGetSimFunctionDefinition } from "../functions/soracom_get_sim/mo
  */
 const SoracomGetSimWorkflow = DefineWorkflow({
   callback_id: "soracom_get_sim_workflow",
-  title: "Soracom SIM Details",
-  description: "Fetch and display details for a specific Soracom SIM",
+  title: "SORACOM SIM詳細",
+  description: "指定した SIM の詳細を取得して表示します",
   input_parameters: {
     properties: {
       sim_id: {
         type: Schema.types.string,
-        description: "Soracom SIM ID (ICCID)",
+        description: "SORACOM SIM ID（ICCID）",
       },
       channel_id: {
         type: Schema.slack.types.channel_id,
-        description: "Target channel",
+        description: "対象チャンネル",
       },
     },
     required: ["sim_id", "channel_id"],

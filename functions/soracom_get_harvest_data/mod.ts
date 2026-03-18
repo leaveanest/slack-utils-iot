@@ -9,18 +9,18 @@ import { imsiSchema } from "../../lib/validation/schemas.ts";
  */
 export const SoracomGetHarvestDataFunctionDefinition = DefineFunction({
   callback_id: "soracom_get_harvest_data",
-  title: "Soracom Harvest Data",
-  description: "Fetch Harvest Data entries for a subscriber",
+  title: "SORACOM Harvest Data確認",
+  description: "加入者の Harvest Data を取得して表示します",
   source_file: "functions/soracom_get_harvest_data/mod.ts",
   input_parameters: {
     properties: {
       imsi: {
         type: Schema.types.string,
-        description: "IMSI of the subscriber (15 digits)",
+        description: "加入者の IMSI（15 桁）",
       },
       channel_id: {
         type: Schema.slack.types.channel_id,
-        description: "Channel to post results",
+        description: "結果を投稿するチャンネル",
       },
     },
     required: ["imsi", "channel_id"],
@@ -33,11 +33,11 @@ export const SoracomGetHarvestDataFunctionDefinition = DefineFunction({
       },
       entry_count: {
         type: Schema.types.number,
-        description: "Number of data entries returned",
+        description: "取得したデータ件数",
       },
       message: {
         type: Schema.types.string,
-        description: "Formatted Harvest data message",
+        description: "整形済みの Harvest Data メッセージ",
       },
     },
     required: ["imsi", "entry_count", "message"],
@@ -75,13 +75,13 @@ export function formatHarvestDataMessage(
 
 export default SlackFunction(
   SoracomGetHarvestDataFunctionDefinition,
-  async ({ inputs, client }) => {
+  async ({ inputs, client, env }) => {
     try {
       const validImsi = imsiSchema.parse(inputs.imsi);
 
       console.log(t("soracom.logs.fetching_harvest_data", { imsi: validImsi }));
 
-      const soracomClient = createSoracomClientFromEnv();
+      const soracomClient = createSoracomClientFromEnv(env);
 
       // デフォルトで過去24時間のデータを取得
       const now = Date.now();

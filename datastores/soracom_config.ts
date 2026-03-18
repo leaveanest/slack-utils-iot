@@ -1,7 +1,7 @@
 import { DefineDatastore, Schema } from "deno-slack-sdk/mod.ts";
 
 /**
- * Soracom設定用データストア
+ * SORACOM設定用データストア
  *
  * チャンネルIDなどの設定値をキーバリュー形式で保存します。
  * 環境変数の代わりにSlack Datastoreで設定を管理できます。
@@ -17,19 +17,19 @@ const SoracomConfigDatastore = DefineDatastore({
   attributes: {
     config_key: {
       type: Schema.types.string,
-      description: "Configuration key (e.g., alert_channel_id)",
+      description: "設定キー（例: alert_channel_id）",
     },
     config_value: {
       type: Schema.types.string,
-      description: "Configuration value",
+      description: "設定値",
     },
     updated_by: {
       type: Schema.slack.types.user_id,
-      description: "User who last updated this config",
+      description: "この設定を最後に更新したユーザー",
     },
     updated_at: {
       type: Schema.types.string,
-      description: "Last updated timestamp (ISO 8601)",
+      description: "最終更新日時（ISO 8601）",
     },
   },
 });

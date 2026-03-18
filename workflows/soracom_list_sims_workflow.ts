@@ -8,13 +8,13 @@ import { SoracomListSimsFunctionDefinition } from "../functions/soracom_list_sim
  */
 const SoracomListSimsWorkflow = DefineWorkflow({
   callback_id: "soracom_list_sims_workflow",
-  title: "Soracom SIM List",
-  description: "Fetch and display Soracom SIM list in the channel",
+  title: "SORACOM SIM一覧",
+  description: "SORACOM の SIM 一覧を取得して表示します",
   input_parameters: {
     properties: {
       channel_id: {
         type: Schema.slack.types.channel_id,
-        description: "Target channel",
+        description: "対象チャンネル",
       },
     },
     required: ["channel_id"],

@@ -8,13 +8,13 @@ import { SoracomListSoraCamDevicesFunctionDefinition } from "../functions/soraco
  */
 const SoracomListSoraCamDevicesWorkflow = DefineWorkflow({
   callback_id: "soracom_list_soracam_devices_workflow",
-  title: "SoraCam Device List",
-  description: "Fetch and display SoraCam device list",
+  title: "SoraCamデバイス一覧",
+  description: "SoraCam デバイス一覧を取得して表示します",
   input_parameters: {
     properties: {
       channel_id: {
         type: Schema.slack.types.channel_id,
-        description: "Target channel",
+        description: "対象チャンネル",
       },
     },
     required: ["channel_id"],

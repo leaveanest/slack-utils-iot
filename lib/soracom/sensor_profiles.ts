@@ -25,6 +25,10 @@ export type SoracomSensorProfileInput = {
   sensorName: string;
   reportChannelId: string;
   co2Threshold?: number;
+  temperatureMin?: number;
+  temperatureMax?: number;
+  humidityMin?: number;
+  humidityMax?: number;
   soraCamDeviceId?: string;
   lookbackHours?: number;
 };
@@ -51,6 +55,18 @@ export async function upsertSensorProfile(
       ...(profile.co2Threshold === undefined
         ? {}
         : { co2_threshold: profile.co2Threshold }),
+      ...(profile.temperatureMin === undefined
+        ? {}
+        : { temperature_min: profile.temperatureMin }),
+      ...(profile.temperatureMax === undefined
+        ? {}
+        : { temperature_max: profile.temperatureMax }),
+      ...(profile.humidityMin === undefined
+        ? {}
+        : { humidity_min: profile.humidityMin }),
+      ...(profile.humidityMax === undefined
+        ? {}
+        : { humidity_max: profile.humidityMax }),
       ...(profile.soraCamDeviceId === undefined
         ? {}
         : { soracam_device_id: profile.soraCamDeviceId }),
@@ -116,6 +132,10 @@ function normalizeSensorProfile(
     sensorName,
     reportChannelId,
     co2Threshold: readNumber(item.co2_threshold),
+    temperatureMin: readNumber(item.temperature_min),
+    temperatureMax: readNumber(item.temperature_max),
+    humidityMin: readNumber(item.humidity_min),
+    humidityMax: readNumber(item.humidity_max),
     soraCamDeviceId: readString(item.soracam_device_id) ?? undefined,
     lookbackHours: readNumber(item.lookback_hours),
     updatedBy: readString(item.updated_by) ?? undefined,

@@ -6,22 +6,20 @@ import { SoracomSoraCamMotionCaptureFunctionDefinition } from "../functions/sora
  *
  * 指定デバイスの動体検知イベントを取得し、
  * 検出されたイベント時刻の画像を自動エクスポートしてチャンネルに投稿します。
- * Scheduled Triggerで定期実行することを推奨します。
  */
 const SoracomSoraCamMotionCaptureWorkflow = DefineWorkflow({
   callback_id: "soracom_soracam_motion_capture_workflow",
-  title: "SoraCam Motion Capture",
-  description:
-    "Detect motion events and automatically capture images from the recording",
+  title: "SoraCam動体検知画像確認",
+  description: "動体検知イベントを見つけ、録画から画像を切り出して共有します",
   input_parameters: {
     properties: {
       device_id: {
         type: Schema.types.string,
-        description: "SoraCam device ID",
+        description: "SoraCam デバイス ID",
       },
       channel_id: {
         type: Schema.slack.types.channel_id,
-        description: "Target channel",
+        description: "対象チャンネル",
       },
     },
     required: ["device_id", "channel_id"],

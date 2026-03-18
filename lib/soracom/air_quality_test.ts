@@ -3,10 +3,12 @@ import type { HarvestDataEntry } from "./types.ts";
 import {
   bucketAirQualityEntries,
   compareAirQualitySummaries,
+  DEFAULT_AIR_QUALITY_CRITERIA,
   extractAirQualitySample,
   filterAirQualityEntriesByTimeRange,
   findLargestCo2Spike,
   findPeakCo2Bucket,
+  resolveAirQualityCriteria,
   summarizeAirQualityEntries,
 } from "./air_quality.ts";
 
@@ -101,8 +103,13 @@ Deno.test("Harvest Dataエントリを集計してメトリクス要約を返す
       max: 50,
       average: 47.5,
     },
+    criteria: DEFAULT_AIR_QUALITY_CRITERIA,
     co2Threshold: 1000,
     co2ThresholdExceededCount: 0,
+    temperatureRange: { min: 18, max: 28 },
+    temperatureOutOfRangeCount: 0,
+    humidityRange: { min: 40, max: 70 },
+    humidityOutOfRangeCount: 0,
   });
 });
 
@@ -119,6 +126,32 @@ Deno.test("CO2しきい値超過件数をカウントできる", () => {
 
   assertEquals(summary.co2ThresholdExceededCount, 2);
   assertEquals(summary.co2.latest, 1400);
+});
+
+Deno.test("温度と湿度の範囲外件数をカウントできる", () => {
+  const summary = summarizeAirQualityEntries([
+    createEntry(1000, { temperature: 18, humidity: 40 }),
+    createEntry(2000, { temperature: 29, humidity: 39 }),
+    createEntry(3000, { temperature: 17, humidity: 71 }),
+  ]);
+
+  assertEquals(summary.temperatureOutOfRangeCount, 2);
+  assertEquals(summary.humidityOutOfRangeCount, 2);
+});
+
+Deno.test("部分的な基準値から既定値込みで空気品質基準を解決できる", () => {
+  const criteria = resolveAirQualityCriteria({
+    temperatureMax: 26,
+    humidityMin: 45,
+  });
+
+  assertEquals(criteria, {
+    co2Max: 1000,
+    temperatureMin: 18,
+    temperatureMax: 26,
+    humidityMin: 45,
+    humidityMax: 70,
+  });
 });
 
 Deno.test("時間範囲でHarvest Dataエントリを絞り込める", () => {
@@ -167,8 +200,13 @@ Deno.test("固定ウィンドウごとに空気品質を集計できる", () => 
           max: 40,
           average: 40,
         },
+        criteria: DEFAULT_AIR_QUALITY_CRITERIA,
         co2Threshold: 1000,
         co2ThresholdExceededCount: 0,
+        temperatureRange: { min: 18, max: 28 },
+        temperatureOutOfRangeCount: 0,
+        humidityRange: { min: 40, max: 70 },
+        humidityOutOfRangeCount: 0,
       },
     },
     {
@@ -194,8 +232,13 @@ Deno.test("固定ウィンドウごとに空気品質を集計できる", () => 
           max: 50,
           average: 50,
         },
+        criteria: DEFAULT_AIR_QUALITY_CRITERIA,
         co2Threshold: 1000,
         co2ThresholdExceededCount: 1,
+        temperatureRange: { min: 18, max: 28 },
+        temperatureOutOfRangeCount: 0,
+        humidityRange: { min: 40, max: 70 },
+        humidityOutOfRangeCount: 0,
       },
     },
   ]);
@@ -238,16 +281,26 @@ Deno.test("空気品質サマリーの平均値差分を比較できる", () => 
       co2: { average: 800 },
       temperature: { average: 22 },
       humidity: {},
+      criteria: DEFAULT_AIR_QUALITY_CRITERIA,
       co2Threshold: 1000,
       co2ThresholdExceededCount: 0,
+      temperatureRange: { min: 18, max: 28 },
+      temperatureOutOfRangeCount: 0,
+      humidityRange: { min: 40, max: 70 },
+      humidityOutOfRangeCount: 0,
     },
     {
       sampleCount: 3,
       co2: { average: 950 },
       temperature: { average: 21.5 },
       humidity: { average: 48 },
+      criteria: DEFAULT_AIR_QUALITY_CRITERIA,
       co2Threshold: 1000,
       co2ThresholdExceededCount: 1,
+      temperatureRange: { min: 18, max: 28 },
+      temperatureOutOfRangeCount: 0,
+      humidityRange: { min: 40, max: 70 },
+      humidityOutOfRangeCount: 0,
     },
   );
 

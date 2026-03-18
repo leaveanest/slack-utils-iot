@@ -53,6 +53,10 @@ Deno.test({
         sensorName: "会議室CO2センサー",
         reportChannelId: "C1111111111",
         co2Threshold: 1200,
+        temperatureMin: 19,
+        temperatureMax: 27,
+        humidityMin: 45,
+        humidityMax: 65,
         soraCamDeviceId: "camera-1",
         lookbackHours: 12,
       },
@@ -62,6 +66,10 @@ Deno.test({
     assertEquals(store["440101234567890"].sensor_name, "会議室CO2センサー");
     assertEquals(store["440101234567890"].report_channel_id, "C1111111111");
     assertEquals(store["440101234567890"].co2_threshold, 1200);
+    assertEquals(store["440101234567890"].temperature_min, 19);
+    assertEquals(store["440101234567890"].temperature_max, 27);
+    assertEquals(store["440101234567890"].humidity_min, 45);
+    assertEquals(store["440101234567890"].humidity_max, 65);
   },
 });
 
@@ -111,6 +119,10 @@ Deno.test({
         sensor_name: "A会議室",
         report_channel_id: "C1111111111",
         co2_threshold: 1000,
+        temperature_min: 18,
+        temperature_max: 28,
+        humidity_min: 40,
+        humidity_max: 70,
         soracam_device_id: "camera-1",
         lookback_hours: 24,
       },
@@ -123,6 +135,10 @@ Deno.test({
 
     assertEquals(profiles.length, 2);
     assertEquals(profiles[0].sensorName, "A会議室");
+    assertEquals(profiles[0].temperatureMin, 18);
+    assertEquals(profiles[0].temperatureMax, 28);
+    assertEquals(profiles[0].humidityMin, 40);
+    assertEquals(profiles[0].humidityMax, 70);
     assertEquals(profiles[0].soraCamDeviceId, "camera-1");
     assertEquals(profiles[1].sensorName, "B会議室");
   },

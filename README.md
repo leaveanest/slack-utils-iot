@@ -48,11 +48,10 @@ cd slack-utils-soracom
 
 # 環境変数の設定
 cp .env.example .env
-# .env ファイルを編集して、アプリ名やカテゴリをカスタマイズ
+# .env ファイルを編集して、アプリ名と SORACOM 認証情報を設定
 
-# 依存設定と初期化
+# 初期化
 slack login
-slack env add local
 
 # Git hooks をセットアップ（推奨）
 # macOS/Linux: bash scripts/setup-git-hooks.sh
@@ -65,12 +64,24 @@ slack env add local
 
 ```bash
 # Slack App Configuration
-SLACK_APP_NAME=Slack Utils SORACOM          # アプリ名
-SLACK_APP_DESCRIPTION=SORACOM utilities for Slack  # アプリの説明
-SLACK_CATEGORY=Soracom                      # カテゴリ名
+SLACK_APP_NAME="Slack Utils SORACOM"          # アプリ名
+SLACK_APP_DESCRIPTION="SORACOM utilities for Slack"  # アプリの説明
+
+# SORACOM API Authentication (required)
+SORACOM_AUTH_KEY_ID=your-auth-key-id
+SORACOM_AUTH_KEY=your-auth-key
+SORACOM_COVERAGE_TYPE=jp                    # jp または g
+
+# Slack Channel Configuration (optional)
+SORACOM_DEFAULT_CHANNEL_ID=C0123456789     # 共通の既定通知先
+SORACOM_ALERT_CHANNEL_ID=C0123456789       # SIM異常検知
+SORACOM_REPORT_CHANNEL_ID=C0123456789      # 日次・週次レポート
+SORACOM_SORACAM_CHANNEL_ID=C0123456789     # SoraCam 画像付き通知
 ```
 
-これらの変数は、ワークフローやファンクションの名前や説明に自動的に反映されます。
+`SORACOM_AUTH_KEY_ID` と `SORACOM_AUTH_KEY` は SORACOM API を使う Function
+の実行に必須です。チャンネル関連の環境変数は未設定でも動作しますが、 未設定時は
+`SORACOM_DEFAULT_CHANNEL_ID`、それも無ければコード内のフォールバック値が使われます。
 
 ### slack.json 設定
 
@@ -131,8 +142,8 @@ slack run workflows/soracom_list_sims_workflow
   を配置します。
 - `workflows/`
   には、運用シナリオに沿って複数の部品を組み合わせたサンプルや推奨フローを定義します。
-- `triggers/`
-  は任意です。必要な場合だけ、利用者ごとにショートカットや定期実行を設定します。
+- `triggers/` は任意です。必要な場合だけ、利用者ごとに link trigger
+  や定期実行を設定します。
 
 ## Function / Workflow 一覧
 
@@ -195,11 +206,14 @@ Builder や利用者独自の Workflow から Function を custom step
 
 このリポジトリでは、Trigger は補助的なサンプルとして扱います。
 
+- 同梱する sample trigger は
+  `triggers/air_quality_alert_with_snapshot_trigger.ts` の 1 件だけです。
 - `triggers/` 配下のファイルは、動作確認や利用例のための例です。
+- 収録する sample は、基本的に手動実行しやすい link trigger
+  (`TriggerTypes.Shortcut`) に寄せます。
 - 定期実行の有無、実行時刻、通知先、対象デバイスは利用者ごとに異なるため、常設の
-  trigger 提供は前提にしません。
-- 必要な trigger は、利用者側の運用に合わせて `Shortcut` や `Scheduled Trigger`
-  を作成してください。
+  scheduled trigger 提供は前提にしません。
+- 必要な定期実行は、利用者側の運用に合わせて作成してください。
 
 ## 想定ユースケース
 
@@ -239,8 +253,8 @@ Workflow を優先します。SORACOM 本体が直接提供する Slack
 
 ### SoraCam と CO2 センサーの組み合わせ
 
-- `co2_spike_with_snapshot_workflow`
-  - CO2 変化が大きかった時間帯の近傍カメラ画像を添えて状況確認
+- `air_quality_alert_with_snapshot_workflow`
+  - CO2 / 温度 / 湿度の基準逸脱が出た直近時刻の近傍カメラ画像を添えて状況確認
 - `ventilation_check_with_camera_workflow`
   - 換気対応後の改善状況を数値と画像で確認
 - `environment_and_camera_daily_digest_workflow`
@@ -304,11 +318,11 @@ export async function retrieveChannelSummary(
 環境変数で言語を指定できます：
 
 ```bash
-# 英語で実行（デフォルト）
+# 英語で実行
 export LOCALE=en
 deno run your_script.ts
 
-# 日本語で実行
+# 日本語で実行（デフォルト）
 export LOCALE=ja
 deno run your_script.ts
 ```
@@ -430,7 +444,9 @@ const result3 = channelIdSchema.safeParse("invalid");
 
 - デフォルトスキーマ（`channelIdSchema`等）もロケール変更に**動的に対応**します
 - スキーマを再作成する必要はありません
-- 環境変数 `LOCALE` または `LANG` でデフォルトロケールを設定できます
+- このリポジトリの既定ロケールは日本語です
+- 英語で実行したい場合は `LOCALE=en` を明示してください
+- `LANG` は日本語環境の自動検出に利用されます
 
 詳細は [`CONTRIBUTING.md`](CONTRIBUTING.md)
 の「バリデーション（Zod）」セクションを参照してください。
@@ -668,7 +684,7 @@ deno task check
 slack deploy --env production
 
 # 4. 必要に応じてトリガーを作成
-slack triggers create --trigger-file triggers/soracom_list_sims_trigger.ts
+slack trigger create --trigger-def triggers/air_quality_alert_with_snapshot_trigger.ts
 ```
 
 **注意:**
@@ -684,7 +700,7 @@ slack triggers create --trigger-file triggers/soracom_list_sims_trigger.ts
 slack-utils-soracom/
 ├── functions/         # Slack Functions（各関数にtest.tsを配置）
 ├── workflows/         # 推奨構成やサンプルの Slack Workflows
-├── triggers/          # 任意のサンプル Trigger
+├── triggers/          # 任意のサンプル Trigger（同梱は1件のみ）
 ├── docs/              # ドキュメント（テストガイド等）
 ├── assets/            # アイコンなどの静的アセット
 ├── .github/           # CI/CD と Issue テンプレート

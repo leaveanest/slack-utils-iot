@@ -16,14 +16,43 @@ export type AirQualityMetricSummary = {
   average?: number;
 };
 
+/** Min/max range used for air quality validation. */
+export type AirQualityRange = {
+  min: number;
+  max: number;
+};
+
+/** User-configurable air quality criteria. */
+export type AirQualityCriteriaInput = {
+  co2Max?: number;
+  temperatureMin?: number;
+  temperatureMax?: number;
+  humidityMin?: number;
+  humidityMax?: number;
+};
+
+/** Fully resolved air quality criteria with defaults applied. */
+export type AirQualityCriteria = {
+  co2Max: number;
+  temperatureMin: number;
+  temperatureMax: number;
+  humidityMin: number;
+  humidityMax: number;
+};
+
 /** Aggregated air quality summary for Harvest Data entries. */
 export type AirQualitySummary = {
   sampleCount: number;
   co2: AirQualityMetricSummary;
   temperature: AirQualityMetricSummary;
   humidity: AirQualityMetricSummary;
+  criteria: AirQualityCriteria;
   co2Threshold: number;
   co2ThresholdExceededCount: number;
+  temperatureRange: AirQualityRange;
+  temperatureOutOfRangeCount: number;
+  humidityRange: AirQualityRange;
+  humidityOutOfRangeCount: number;
 };
 
 /** Aggregated air quality summary for one fixed time bucket. */
@@ -56,13 +85,74 @@ export type AirQualitySpike = {
   delta: number;
 };
 
-const DEFAULT_CO2_THRESHOLD = 1000;
+export const DEFAULT_AIR_QUALITY_CRITERIA: AirQualityCriteria = {
+  co2Max: 1000,
+  temperatureMin: 18,
+  temperatureMax: 28,
+  humidityMin: 40,
+  humidityMax: 70,
+};
 
 const AIR_QUALITY_KEYS = {
   co2: ["co2", "co2ppm", "co2_ppm"],
   temperature: ["temperature", "temp"],
   humidity: ["humidity", "hum"],
 } as const;
+
+/**
+ * Resolves air quality criteria from optional overrides.
+ *
+ * `number` inputs are treated as legacy CO2 threshold overrides.
+ *
+ * @param criteriaInput - Partial criteria overrides or legacy CO2 threshold
+ * @returns Resolved criteria with defaults applied
+ * @throws {Error} When the resolved criteria are invalid
+ */
+export function resolveAirQualityCriteria(
+  criteriaInput?: AirQualityCriteriaInput | number,
+): AirQualityCriteria {
+  const overrides = typeof criteriaInput === "number"
+    ? { co2Max: criteriaInput }
+    : (criteriaInput ?? {});
+
+  const criteria: AirQualityCriteria = {
+    co2Max: overrides.co2Max ?? DEFAULT_AIR_QUALITY_CRITERIA.co2Max,
+    temperatureMin: overrides.temperatureMin ??
+      DEFAULT_AIR_QUALITY_CRITERIA.temperatureMin,
+    temperatureMax: overrides.temperatureMax ??
+      DEFAULT_AIR_QUALITY_CRITERIA.temperatureMax,
+    humidityMin: overrides.humidityMin ??
+      DEFAULT_AIR_QUALITY_CRITERIA.humidityMin,
+    humidityMax: overrides.humidityMax ??
+      DEFAULT_AIR_QUALITY_CRITERIA.humidityMax,
+  };
+
+  if (!Number.isFinite(criteria.co2Max) || criteria.co2Max <= 0) {
+    throw new Error("co2Max must be a positive number");
+  }
+
+  if (
+    !Number.isFinite(criteria.temperatureMin) ||
+    !Number.isFinite(criteria.temperatureMax) ||
+    criteria.temperatureMin > criteria.temperatureMax
+  ) {
+    throw new Error("temperature range must be finite and ordered");
+  }
+
+  if (
+    !Number.isFinite(criteria.humidityMin) ||
+    !Number.isFinite(criteria.humidityMax) ||
+    criteria.humidityMin < 0 ||
+    criteria.humidityMax > 100 ||
+    criteria.humidityMin > criteria.humidityMax
+  ) {
+    throw new Error(
+      "humidity range must be finite, ordered, and between 0 and 100",
+    );
+  }
+
+  return criteria;
+}
 
 /**
  * Extracts an air quality sample from a Harvest Data entry.
@@ -104,18 +194,20 @@ export function extractAirQualitySample(
  * Invalid entries and entries without supported metrics are ignored.
  *
  * @param entries - Harvest Data entries
- * @param co2Threshold - Threshold used for CO2 exceedance counting
+ * @param criteriaInput - Criteria used for threshold and range counting
  * @returns Aggregated air quality summary
  */
 export function summarizeAirQualityEntries(
   entries: HarvestDataEntry[],
-  co2Threshold = DEFAULT_CO2_THRESHOLD,
+  criteriaInput?: AirQualityCriteriaInput | number,
 ): AirQualitySummary {
+  const criteria = resolveAirQualityCriteria(criteriaInput);
+
   return summarizeAirQualitySamples(
     entries
       .map((entry) => extractAirQualitySample(entry))
       .filter((sample): sample is AirQualitySample => sample !== null),
-    co2Threshold,
+    criteria,
   );
 }
 
@@ -157,17 +249,19 @@ export function filterAirQualityEntriesByTimeRange(
  *
  * @param entries - Harvest Data entries
  * @param windowSizeMs - Fixed bucket size in milliseconds
- * @param co2Threshold - Threshold used for CO2 exceedance counting
+ * @param criteriaInput - Criteria used for threshold and range counting
  * @returns Time-ordered bucket summaries
  */
 export function bucketAirQualityEntries(
   entries: HarvestDataEntry[],
   windowSizeMs: number,
-  co2Threshold = DEFAULT_CO2_THRESHOLD,
+  criteriaInput?: AirQualityCriteriaInput | number,
 ): AirQualityBucketSummary[] {
   if (!Number.isFinite(windowSizeMs) || windowSizeMs <= 0) {
     throw new Error("windowSizeMs must be a positive number");
   }
+
+  const criteria = resolveAirQualityCriteria(criteriaInput);
 
   const buckets = new Map<number, AirQualitySample[]>();
 
@@ -188,7 +282,7 @@ export function bucketAirQualityEntries(
     .map(([startTime, samples]) => ({
       startTime,
       endTime: startTime + windowSizeMs,
-      summary: summarizeAirQualitySamples(samples, co2Threshold),
+      summary: summarizeAirQualitySamples(samples, criteria),
     }));
 }
 
@@ -301,25 +395,48 @@ export function findLargestCo2Spike(
  * Summarizes extracted air quality samples.
  *
  * @param samples - Extracted air quality samples
- * @param co2Threshold - Threshold used for CO2 exceedance counting
+ * @param criteria - Criteria used for threshold and range counting
  * @returns Aggregated air quality summary
  */
 function summarizeAirQualitySamples(
   samples: AirQualitySample[],
-  co2Threshold: number,
+  criteria: AirQualityCriteria,
 ): AirQualitySummary {
   const sortedSamples = [...samples].sort((a, b) => a.time - b.time);
+  const temperatureRange: AirQualityRange = {
+    min: criteria.temperatureMin,
+    max: criteria.temperatureMax,
+  };
+  const humidityRange: AirQualityRange = {
+    min: criteria.humidityMin,
+    max: criteria.humidityMax,
+  };
+
+  const co2ThresholdExceededCount =
+    sortedSamples.filter((sample) =>
+      sample.co2 !== undefined && sample.co2 > criteria.co2Max
+    ).length;
+  const temperatureOutOfRangeCount =
+    sortedSamples.filter((sample) =>
+      isOutsideRange(sample.temperature, temperatureRange)
+    ).length;
+  const humidityOutOfRangeCount =
+    sortedSamples.filter((sample) =>
+      isOutsideRange(sample.humidity, humidityRange)
+    ).length;
 
   return {
     sampleCount: sortedSamples.length,
     co2: summarizeMetric(sortedSamples, "co2"),
     temperature: summarizeMetric(sortedSamples, "temperature"),
     humidity: summarizeMetric(sortedSamples, "humidity"),
-    co2Threshold,
-    co2ThresholdExceededCount:
-      sortedSamples.filter((sample) =>
-        sample.co2 !== undefined && sample.co2 > co2Threshold
-      ).length,
+    criteria,
+    co2Threshold: criteria.co2Max,
+    co2ThresholdExceededCount,
+    temperatureRange,
+    temperatureOutOfRangeCount,
+    humidityRange,
+    humidityOutOfRangeCount,
   };
 }
 
@@ -371,6 +488,22 @@ function compareMetricAverages(
       ? afterAverage - beforeAverage
       : undefined,
   };
+}
+
+/**
+ * Checks whether a metric value falls outside a configured range.
+ *
+ * Undefined values are ignored and treated as in-range for counting purposes.
+ *
+ * @param value - Metric value
+ * @param range - Inclusive allowed range
+ * @returns `true` when the value is defined and outside the range
+ */
+function isOutsideRange(
+  value: number | undefined,
+  range: AirQualityRange,
+): boolean {
+  return value !== undefined && (value < range.min || value > range.max);
 }
 
 /**

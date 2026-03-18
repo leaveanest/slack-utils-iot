@@ -6,18 +6,30 @@ import {
   createSoracomClientFromEnv,
   filterAirQualityEntriesByTimeRange,
   getConfigValue,
+  resolveAirQualityCriteria,
   summarizeAirQualityEntries,
 } from "../../lib/soracom/mod.ts";
 import type {
+  AirQualityCriteria,
   AirQualityMetricDelta,
   AirQualitySummary,
   AirQualitySummaryDelta,
 } from "../../lib/soracom/mod.ts";
 import { imsiSchema } from "../../lib/validation/schemas.ts";
 
-const DEFAULT_CO2_THRESHOLD = 1000;
 const DEFAULT_BEFORE_MINUTES = 60;
 const DEFAULT_AFTER_MINUTES = 60;
+
+type AirQualityCriteriaView = {
+  co2Max: number;
+  temperatureMin: number;
+  temperatureMax: number;
+  humidityMin: number;
+  humidityMax: number;
+  co2ViolationCount: number;
+  temperatureViolationCount: number;
+  humidityViolationCount: number;
+};
 
 /**
  * 換気効果振り返り関数定義
@@ -27,35 +39,50 @@ const DEFAULT_AFTER_MINUTES = 60;
  */
 export const VentilationEffectReviewFunctionDefinition = DefineFunction({
   callback_id: "ventilation_effect_review",
-  title: "Ventilation Effect Review",
-  description:
-    "Compare air quality before and after a ventilation reference time",
+  title: "換気効果振り返り",
+  description: "換気前後の空気品質を比較して振り返ります",
   source_file: "functions/ventilation_effect_review/mod.ts",
   input_parameters: {
     properties: {
       imsi: {
         type: Schema.types.string,
-        description: "IMSI of the subscriber (15 digits)",
+        description: "加入者の IMSI（15 桁）",
       },
       channel_id: {
         type: Schema.slack.types.channel_id,
-        description: "Channel to post results",
+        description: "結果を投稿するチャンネル",
       },
       reference_time: {
         type: Schema.types.string,
-        description: "Reference time in ISO 8601 format",
+        description: "基準時刻（ISO 8601 形式）",
       },
       before_minutes: {
         type: Schema.types.number,
-        description: "Window length before the reference time in minutes",
+        description: "基準時刻より前の集計時間（分）",
       },
       after_minutes: {
         type: Schema.types.number,
-        description: "Window length after the reference time in minutes",
+        description: "基準時刻より後の集計時間（分）",
       },
       co2_threshold: {
         type: Schema.types.number,
-        description: "CO2 alert threshold in ppm",
+        description: "CO2 アラートしきい値（ppm）",
+      },
+      temperature_min: {
+        type: Schema.types.number,
+        description: "温度下限しきい値（C）",
+      },
+      temperature_max: {
+        type: Schema.types.number,
+        description: "温度上限しきい値（C）",
+      },
+      humidity_min: {
+        type: Schema.types.number,
+        description: "湿度下限しきい値（%）",
+      },
+      humidity_max: {
+        type: Schema.types.number,
+        description: "湿度上限しきい値（%）",
       },
     },
     required: ["imsi", "channel_id", "reference_time"],
@@ -68,15 +95,15 @@ export const VentilationEffectReviewFunctionDefinition = DefineFunction({
       },
       before_sample_count: {
         type: Schema.types.number,
-        description: "Number of samples before the reference time",
+        description: "基準時刻より前のサンプル数",
       },
       after_sample_count: {
         type: Schema.types.number,
-        description: "Number of samples after the reference time",
+        description: "基準時刻より後のサンプル数",
       },
       message: {
         type: Schema.types.string,
-        description: "Formatted ventilation effect review message",
+        description: "整形済みの換気効果振り返りメッセージ",
       },
     },
     required: ["imsi", "before_sample_count", "after_sample_count", "message"],
@@ -110,6 +137,8 @@ export function formatVentilationEffectReviewMessage(
       referenceTime: new Date(referenceTime).toISOString(),
     })
   }*`;
+  const beforeCriteria = getAirQualityCriteriaView(beforeSummary);
+  const afterCriteria = getAirQualityCriteriaView(afterSummary);
 
   if (beforeSummary.sampleCount === 0 && afterSummary.sampleCount === 0) {
     return [
@@ -128,11 +157,7 @@ export function formatVentilationEffectReviewMessage(
       minutes: afterMinutes,
       count: afterSummary.sampleCount,
     }),
-    t("soracom.messages.ventilation_effect_review_threshold_change", {
-      before: beforeSummary.co2ThresholdExceededCount,
-      after: afterSummary.co2ThresholdExceededCount,
-      threshold: formatMetricNumber(afterSummary.co2Threshold),
-    }),
+    ...formatCriteriaChangeLines(beforeCriteria, afterCriteria),
     buildCo2AssessmentLine(comparison.co2),
     formatComparisonLine(
       t("soracom.messages.air_quality_metric_co2"),
@@ -233,24 +258,62 @@ function formatSignedMetricNumber(value: number): string {
   return "0";
 }
 
+function formatCriteriaChangeLines(
+  beforeCriteria: AirQualityCriteriaView,
+  afterCriteria: AirQualityCriteriaView,
+): [string, string, string] {
+  return [
+    t("soracom.messages.air_quality_co2_violation_change", {
+      threshold: formatMetricNumber(afterCriteria.co2Max),
+      before: beforeCriteria.co2ViolationCount,
+      after: afterCriteria.co2ViolationCount,
+    }),
+    t("soracom.messages.air_quality_temperature_violation_change", {
+      min: formatMetricNumber(afterCriteria.temperatureMin),
+      max: formatMetricNumber(afterCriteria.temperatureMax),
+      before: beforeCriteria.temperatureViolationCount,
+      after: afterCriteria.temperatureViolationCount,
+    }),
+    t("soracom.messages.air_quality_humidity_violation_change", {
+      min: formatMetricNumber(afterCriteria.humidityMin),
+      max: formatMetricNumber(afterCriteria.humidityMax),
+      before: beforeCriteria.humidityViolationCount,
+      after: afterCriteria.humidityViolationCount,
+    }),
+  ];
+}
+
+function getAirQualityCriteriaView(
+  summary: AirQualitySummary,
+): AirQualityCriteriaView {
+  return {
+    co2Max: summary.criteria.co2Max,
+    temperatureMin: summary.criteria.temperatureMin,
+    temperatureMax: summary.criteria.temperatureMax,
+    humidityMin: summary.criteria.humidityMin,
+    humidityMax: summary.criteria.humidityMax,
+    co2ViolationCount: summary.co2ThresholdExceededCount,
+    temperatureViolationCount: summary.temperatureOutOfRangeCount,
+    humidityViolationCount: summary.humidityOutOfRangeCount,
+  };
+}
+
 export default SlackFunction(
   VentilationEffectReviewFunctionDefinition,
-  async ({ inputs, client }) => {
+  async ({ inputs, client, env }) => {
     try {
       const validImsi = imsiSchema.parse(inputs.imsi);
       const referenceTime = Date.parse(inputs.reference_time);
       const beforeMinutes = inputs.before_minutes ?? DEFAULT_BEFORE_MINUTES;
       const afterMinutes = inputs.after_minutes ?? DEFAULT_AFTER_MINUTES;
-      const co2Threshold = inputs.co2_threshold ?? DEFAULT_CO2_THRESHOLD;
+      const criteria = buildCriteria(inputs);
 
       if (
         !Number.isFinite(referenceTime) ||
         !Number.isFinite(beforeMinutes) ||
         beforeMinutes <= 0 ||
         !Number.isFinite(afterMinutes) ||
-        afterMinutes <= 0 ||
-        !Number.isFinite(co2Threshold) ||
-        co2Threshold <= 0
+        afterMinutes <= 0
       ) {
         throw new Error(t("errors.invalid_input"));
       }
@@ -266,11 +329,12 @@ export default SlackFunction(
         client,
         CONFIG_KEYS.REPORT_CHANNEL_ID,
         inputs.channel_id,
+        env,
       );
 
       const beforeStartTime = referenceTime - beforeMinutes * 60 * 1000;
       const afterEndTime = referenceTime + afterMinutes * 60 * 1000;
-      const soracomClient = createSoracomClientFromEnv();
+      const soracomClient = createSoracomClientFromEnv(env);
       const result = await soracomClient.getHarvestData(
         validImsi,
         beforeStartTime,
@@ -283,7 +347,7 @@ export default SlackFunction(
           beforeStartTime,
           referenceTime,
         ),
-        co2Threshold,
+        criteria,
       );
       const afterSummary = summarizeAirQualityEntries(
         filterAirQualityEntriesByTimeRange(
@@ -291,7 +355,7 @@ export default SlackFunction(
           referenceTime,
           afterEndTime,
         ),
-        co2Threshold,
+        criteria,
       );
       const comparison = compareAirQualitySummaries(
         beforeSummary,
@@ -329,3 +393,25 @@ export default SlackFunction(
     }
   },
 );
+
+function buildCriteria(
+  inputs: {
+    co2_threshold?: number;
+    temperature_min?: number;
+    temperature_max?: number;
+    humidity_min?: number;
+    humidity_max?: number;
+  },
+): AirQualityCriteria {
+  try {
+    return resolveAirQualityCriteria({
+      co2Max: inputs.co2_threshold,
+      temperatureMin: inputs.temperature_min,
+      temperatureMax: inputs.temperature_max,
+      humidityMin: inputs.humidity_min,
+      humidityMax: inputs.humidity_max,
+    });
+  } catch {
+    throw new Error(t("errors.invalid_input"));
+  }
+}

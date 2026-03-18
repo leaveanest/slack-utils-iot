@@ -9,18 +9,18 @@ import { soraCamDeviceIdSchema } from "../../lib/validation/schemas.ts";
  */
 export const SoracomGetSoraCamEventsFunctionDefinition = DefineFunction({
   callback_id: "soracom_get_soracam_events",
-  title: "SoraCam Events",
-  description: "Fetch events (motion/sound detection) for a SoraCam device",
+  title: "SoraCamイベント",
+  description: "SoraCam デバイスのイベントを取得して表示します",
   source_file: "functions/soracom_get_soracam_events/mod.ts",
   input_parameters: {
     properties: {
       device_id: {
         type: Schema.types.string,
-        description: "SoraCam device ID",
+        description: "SoraCam デバイス ID",
       },
       channel_id: {
         type: Schema.slack.types.channel_id,
-        description: "Channel to post results",
+        description: "結果を投稿するチャンネル",
       },
     },
     required: ["device_id", "channel_id"],
@@ -29,15 +29,15 @@ export const SoracomGetSoraCamEventsFunctionDefinition = DefineFunction({
     properties: {
       device_id: {
         type: Schema.types.string,
-        description: "Device ID",
+        description: "デバイス ID",
       },
       event_count: {
         type: Schema.types.number,
-        description: "Number of events returned",
+        description: "取得したイベント数",
       },
       message: {
         type: Schema.types.string,
-        description: "Formatted events message",
+        description: "整形済みのイベントメッセージ",
       },
     },
     required: ["device_id", "event_count", "message"],
@@ -79,7 +79,7 @@ export function formatSoraCamEventsMessage(
 
 export default SlackFunction(
   SoracomGetSoraCamEventsFunctionDefinition,
-  async ({ inputs, client }) => {
+  async ({ inputs, client, env }) => {
     try {
       const validDeviceId = soraCamDeviceIdSchema.parse(inputs.device_id);
 
@@ -89,7 +89,7 @@ export default SlackFunction(
         }),
       );
 
-      const soracomClient = createSoracomClientFromEnv();
+      const soracomClient = createSoracomClientFromEnv(env);
 
       // デフォルトで過去24時間のイベントを取得
       const now = Date.now();

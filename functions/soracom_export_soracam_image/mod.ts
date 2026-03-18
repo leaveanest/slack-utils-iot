@@ -9,19 +9,18 @@ import { soraCamDeviceIdSchema } from "../../lib/validation/schemas.ts";
  */
 export const SoracomExportSoraCamImageFunctionDefinition = DefineFunction({
   callback_id: "soracom_export_soracam_image",
-  title: "SoraCam Image Export",
-  description:
-    "Export an image from a SoraCam device recording and post the result",
+  title: "SoraCam画像エクスポート",
+  description: "SoraCam 録画から画像を切り出して結果を共有します",
   source_file: "functions/soracom_export_soracam_image/mod.ts",
   input_parameters: {
     properties: {
       device_id: {
         type: Schema.types.string,
-        description: "SoraCam device ID",
+        description: "SoraCam デバイス ID",
       },
       channel_id: {
         type: Schema.slack.types.channel_id,
-        description: "Channel to post results",
+        description: "結果を投稿するチャンネル",
       },
     },
     required: ["device_id", "channel_id"],
@@ -30,23 +29,23 @@ export const SoracomExportSoraCamImageFunctionDefinition = DefineFunction({
     properties: {
       device_id: {
         type: Schema.types.string,
-        description: "Device ID",
+        description: "デバイス ID",
       },
       export_id: {
         type: Schema.types.string,
-        description: "Export ID",
+        description: "エクスポート ID",
       },
       status: {
         type: Schema.types.string,
-        description: "Export status",
+        description: "エクスポート状態",
       },
       image_url: {
         type: Schema.types.string,
-        description: "Exported image URL (if completed)",
+        description: "エクスポート画像 URL（完了時）",
       },
       message: {
         type: Schema.types.string,
-        description: "Formatted export result message",
+        description: "整形済みのエクスポート結果メッセージ",
       },
     },
     required: ["device_id", "export_id", "status", "message"],
@@ -90,7 +89,7 @@ export function formatSoraCamImageExportMessage(
 
 export default SlackFunction(
   SoracomExportSoraCamImageFunctionDefinition,
-  async ({ inputs, client }) => {
+  async ({ inputs, client, env }) => {
     try {
       const validDeviceId = soraCamDeviceIdSchema.parse(inputs.device_id);
 
@@ -100,7 +99,7 @@ export default SlackFunction(
         }),
       );
 
-      const soracomClient = createSoracomClientFromEnv();
+      const soracomClient = createSoracomClientFromEnv(env);
 
       // 現在時刻のスナップショットをエクスポート
       const exportResult = await soracomClient.exportSoraCamImage(

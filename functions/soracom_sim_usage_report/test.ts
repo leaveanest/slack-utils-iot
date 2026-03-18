@@ -1,5 +1,10 @@
 import { assertEquals } from "std/testing/asserts.ts";
-import { buildSimUsageSummary, formatUsageReportMessage } from "./mod.ts";
+import {
+  buildSimUsageSummary,
+  formatUsageReportMessage,
+  SoracomSimUsageReportFunctionDefinition,
+} from "./mod.ts";
+import { t } from "../../lib/i18n/mod.ts";
 import type { AirStatsResult, SoracomSim } from "../../lib/soracom/mod.ts";
 import type { SimUsageSummary } from "./mod.ts";
 
@@ -112,6 +117,66 @@ Deno.test({
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     const message = formatUsageReportMessage([], "day");
-    assertEquals(message.length > 0, true);
+    assertEquals(message, t("soracom.messages.no_sims_found"));
+  },
+});
+
+Deno.test({
+  name: "activeなSIMがない場合は専用メッセージを返す",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const message = formatUsageReportMessage([], "day", {
+      totalSimCount: 3,
+      activeSimCount: 0,
+    });
+    assertEquals(
+      message,
+      t("soracom.messages.no_active_sims_found", { count: 3 }),
+    );
+  },
+});
+
+Deno.test({
+  name: "activeなSIMの統計が全件取得失敗した場合は専用メッセージを返す",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const message = formatUsageReportMessage([], "day", {
+      totalSimCount: 3,
+      activeSimCount: 2,
+    });
+    assertEquals(
+      message,
+      t("soracom.messages.sim_usage_report_stats_unavailable", { count: 2 }),
+    );
+  },
+});
+
+Deno.test({
+  name: "期間入力はセレクタ向けの列挙値を持つ",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const definition = SoracomSimUsageReportFunctionDefinition.definition as {
+      input_parameters?: {
+        properties?: {
+          period?: {
+            enum?: string[];
+          };
+        };
+      };
+    };
+
+    assertEquals(
+      definition.input_parameters?.properties?.period?.enum,
+      ["day", "month"],
+    );
   },
 });

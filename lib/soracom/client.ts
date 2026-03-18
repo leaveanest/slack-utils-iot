@@ -15,6 +15,7 @@
  * ```
  */
 
+import { type EnvVars, getRuntimeEnv } from "../env.ts";
 import { t } from "../i18n/mod.ts";
 import type {
   AirStatsDataPoint,
@@ -30,11 +31,92 @@ import type {
   SoracomSimListResult,
 } from "./types.ts";
 
+interface RawAirTrafficStats {
+  uploadByteSizeTotal?: number;
+  downloadByteSizeTotal?: number;
+  uploadPacketSizeTotal?: number;
+  downloadPacketSizeTotal?: number;
+}
+
+interface RawAirStatsDataPoint {
+  date?: string | number;
+  unixtime?: number;
+  uploadByteSizeTotal?: number;
+  downloadByteSizeTotal?: number;
+  uploadPacketSizeTotal?: number;
+  downloadPacketSizeTotal?: number;
+  dataTrafficStatsMap?: Record<string, RawAirTrafficStats>;
+}
+
+interface AirTrafficStatsTotals {
+  uploadByteSizeTotal: number;
+  downloadByteSizeTotal: number;
+  uploadPacketSizeTotal: number;
+  downloadPacketSizeTotal: number;
+}
+
 /** APIベースURL */
 const BASE_URLS: Record<string, string> = {
   jp: "https://api.soracom.io/v1",
   g: "https://g.api.soracom.io/v1",
 };
+
+/**
+ * SORACOM Air通信量統計レスポンスを共通形式に変換します。
+ *
+ * IMSI指定APIはトップレベルに集計値を返し、SIM ID指定APIは
+ * `dataTrafficStatsMap` 配下に速度クラスごとの集計値を返すため、
+ * 呼び出し元で同じ形式を扱えるように正規化します。
+ *
+ * @param rawDataPoints - APIレスポンスのデータポイント配列
+ * @returns 正規化済みのデータポイント配列
+ * @throws {Error} レスポンス形式が不正な場合
+ */
+export function normalizeAirStatsDataPoints(
+  rawDataPoints: unknown,
+): AirStatsDataPoint[] {
+  if (!Array.isArray(rawDataPoints)) {
+    throw new Error("Unexpected air stats response format");
+  }
+
+  return rawDataPoints.map((point) => {
+    const rawPoint = point as RawAirStatsDataPoint;
+
+    if (rawPoint.dataTrafficStatsMap) {
+      const totals = Object.values(rawPoint.dataTrafficStatsMap).reduce(
+        (acc: AirTrafficStatsTotals, stats): AirTrafficStatsTotals => ({
+          uploadByteSizeTotal: acc.uploadByteSizeTotal +
+            (stats.uploadByteSizeTotal ?? 0),
+          downloadByteSizeTotal: acc.downloadByteSizeTotal +
+            (stats.downloadByteSizeTotal ?? 0),
+          uploadPacketSizeTotal: acc.uploadPacketSizeTotal +
+            (stats.uploadPacketSizeTotal ?? 0),
+          downloadPacketSizeTotal: acc.downloadPacketSizeTotal +
+            (stats.downloadPacketSizeTotal ?? 0),
+        }),
+        {
+          uploadByteSizeTotal: 0,
+          downloadByteSizeTotal: 0,
+          uploadPacketSizeTotal: 0,
+          downloadPacketSizeTotal: 0,
+        } satisfies AirTrafficStatsTotals,
+      );
+
+      return {
+        date: rawPoint.unixtime ?? 0,
+        ...totals,
+      };
+    }
+
+    return {
+      date: typeof rawPoint.date === "number" ? rawPoint.date : 0,
+      uploadByteSizeTotal: rawPoint.uploadByteSizeTotal ?? 0,
+      downloadByteSizeTotal: rawPoint.downloadByteSizeTotal ?? 0,
+      uploadPacketSizeTotal: rawPoint.uploadPacketSizeTotal ?? 0,
+      downloadPacketSizeTotal: rawPoint.downloadPacketSizeTotal ?? 0,
+    };
+  });
+}
 
 /**
  * Soracomクライアント設定
@@ -235,10 +317,44 @@ export class SoracomClient {
     const response = await this.request(
       `/stats/air/subscribers/${imsi}?${params.toString()}`,
     );
-    const dataPoints: AirStatsDataPoint[] = await response.json();
+    const dataPoints = normalizeAirStatsDataPoints(await response.json());
 
     return {
       imsi,
+      dataPoints,
+      period,
+    };
+  }
+
+  /**
+   * 指定したSIM IDの通信量統計を取得します。
+   *
+   * @param simId - SIM ID
+   * @param period - 集計期間（"day" または "month"）
+   * @param from - 開始日時（UNIXタイムスタンプ秒）
+   * @param to - 終了日時（UNIXタイムスタンプ秒）
+   * @returns 通信量統計データ
+   * @throws {Error} API呼び出しに失敗した場合
+   */
+  async getAirUsageOfSim(
+    simId: string,
+    period: "day" | "month",
+    from: number,
+    to: number,
+  ): Promise<AirStatsResult> {
+    const params = new URLSearchParams({
+      period,
+      from: String(from),
+      to: String(to),
+    });
+
+    const response = await this.request(
+      `/stats/air/sims/${simId}?${params.toString()}`,
+    );
+    const dataPoints = normalizeAirStatsDataPoints(await response.json());
+
+    return {
+      imsi: simId,
       dataPoints,
       period,
     };
@@ -412,10 +528,10 @@ export class SoracomClient {
  * const sims = await client.listSims();
  * ```
  */
-export function createSoracomClientFromEnv(): SoracomClient {
-  const authKeyId = Deno.env.get("SORACOM_AUTH_KEY_ID");
-  const authKey = Deno.env.get("SORACOM_AUTH_KEY");
-  const coverageType = (Deno.env.get("SORACOM_COVERAGE_TYPE") || "jp") as
+export function createSoracomClientFromEnv(env?: EnvVars): SoracomClient {
+  const authKeyId = getRuntimeEnv("SORACOM_AUTH_KEY_ID", env);
+  const authKey = getRuntimeEnv("SORACOM_AUTH_KEY", env);
+  const coverageType = (getRuntimeEnv("SORACOM_COVERAGE_TYPE", env) || "jp") as
     | "jp"
     | "g";
 

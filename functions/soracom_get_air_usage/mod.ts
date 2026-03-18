@@ -12,22 +12,22 @@ import { imsiSchema, statsPeriodSchema } from "../../lib/validation/schemas.ts";
  */
 export const SoracomGetAirUsageFunctionDefinition = DefineFunction({
   callback_id: "soracom_get_air_usage",
-  title: "Soracom Air Usage Stats",
-  description: "Fetch air usage statistics for a SIM subscriber",
+  title: "SORACOM Air通信量統計",
+  description: "SIM 回線の通信量統計を取得して表示します",
   source_file: "functions/soracom_get_air_usage/mod.ts",
   input_parameters: {
     properties: {
       imsi: {
         type: Schema.types.string,
-        description: "IMSI of the subscriber (15 digits)",
+        description: "加入者の IMSI（15 桁）",
       },
       period: {
         type: Schema.types.string,
-        description: "Aggregation period: 'day' or 'month'",
+        description: "集計期間（day または month）",
       },
       channel_id: {
         type: Schema.slack.types.channel_id,
-        description: "Channel to post results",
+        description: "結果を投稿するチャンネル",
       },
     },
     required: ["imsi", "period", "channel_id"],
@@ -40,15 +40,15 @@ export const SoracomGetAirUsageFunctionDefinition = DefineFunction({
       },
       total_upload: {
         type: Schema.types.string,
-        description: "Total upload bytes (formatted)",
+        description: "総アップロード量（整形済み）",
       },
       total_download: {
         type: Schema.types.string,
-        description: "Total download bytes (formatted)",
+        description: "総ダウンロード量（整形済み）",
       },
       message: {
         type: Schema.types.string,
-        description: "Formatted usage stats message",
+        description: "整形済みの通信量統計メッセージ",
       },
     },
     required: ["imsi", "total_upload", "total_download", "message"],
@@ -106,7 +106,7 @@ export function formatAirUsageMessage(
 
 export default SlackFunction(
   SoracomGetAirUsageFunctionDefinition,
-  async ({ inputs, client }) => {
+  async ({ inputs, client, env }) => {
     try {
       const validImsi = imsiSchema.parse(inputs.imsi);
       const validPeriod = statsPeriodSchema.parse(inputs.period) as
@@ -117,7 +117,7 @@ export default SlackFunction(
         t("soracom.logs.fetching_air_usage", { imsi: validImsi }),
       );
 
-      const soracomClient = createSoracomClientFromEnv();
+      const soracomClient = createSoracomClientFromEnv(env);
 
       // デフォルトで過去30日間のデータを取得
       const now = Math.floor(Date.now() / 1000);

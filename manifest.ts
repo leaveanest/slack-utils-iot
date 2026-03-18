@@ -12,7 +12,7 @@ import { SoracomSimUsageReportFunctionDefinition } from "./functions/soracom_sim
 import { Co2DailyAirQualityReportFunctionDefinition } from "./functions/co2_daily_air_quality_report/mod.ts";
 import { MeetingRoomAirQualityReviewFunctionDefinition } from "./functions/meeting_room_air_quality_review/mod.ts";
 import { VentilationEffectReviewFunctionDefinition } from "./functions/ventilation_effect_review/mod.ts";
-import { Co2SpikeWithSnapshotFunctionDefinition } from "./functions/co2_spike_with_snapshot/mod.ts";
+import { AirQualityAlertWithSnapshotFunctionDefinition } from "./functions/air_quality_alert_with_snapshot/mod.ts";
 import { VentilationCheckWithCameraFunctionDefinition } from "./functions/ventilation_check_with_camera/mod.ts";
 import { EnvironmentAndCameraDailyDigestFunctionDefinition } from "./functions/environment_and_camera_daily_digest/mod.ts";
 import { SoracomUpdateConfigFunctionDefinition } from "./functions/soracom_update_config/mod.ts";
@@ -30,7 +30,7 @@ import SoracomSimUsageReportWorkflow from "./workflows/soracom_sim_usage_report_
 import Co2DailyAirQualityReportWorkflow from "./workflows/co2_daily_air_quality_report_workflow.ts";
 import MeetingRoomAirQualityReviewWorkflow from "./workflows/meeting_room_air_quality_review_workflow.ts";
 import VentilationEffectReviewWorkflow from "./workflows/ventilation_effect_review_workflow.ts";
-import Co2SpikeWithSnapshotWorkflow from "./workflows/co2_spike_with_snapshot_workflow.ts";
+import AirQualityAlertWithSnapshotWorkflow from "./workflows/air_quality_alert_with_snapshot_workflow.ts";
 import VentilationCheckWithCameraWorkflow from "./workflows/ventilation_check_with_camera_workflow.ts";
 import EnvironmentAndCameraDailyDigestWorkflow from "./workflows/environment_and_camera_daily_digest_workflow.ts";
 import SoracomUpdateConfigWorkflow from "./workflows/soracom_update_config_workflow.ts";
@@ -39,9 +39,9 @@ import SoracomConfigDatastore from "./datastores/soracom_config.ts";
 import SoracomSensorProfilesDatastore from "./datastores/soracom_sensor_profiles.ts";
 
 // Load from environment variables with fallback defaults
-const APP_NAME = Deno.env.get("SLACK_APP_NAME") || "Slack Utils Template";
+const APP_NAME = Deno.env.get("SLACK_APP_NAME") || "Slack Utils SORACOM";
 const APP_DESCRIPTION = Deno.env.get("SLACK_APP_DESCRIPTION") ||
-  "A template for Slack workflow development";
+  "SORACOM utilities for Slack";
 
 export default Manifest({
   name: APP_NAME,
@@ -65,7 +65,7 @@ export default Manifest({
     Co2DailyAirQualityReportWorkflow,
     MeetingRoomAirQualityReviewWorkflow,
     VentilationEffectReviewWorkflow,
-    Co2SpikeWithSnapshotWorkflow,
+    AirQualityAlertWithSnapshotWorkflow,
     VentilationCheckWithCameraWorkflow,
     EnvironmentAndCameraDailyDigestWorkflow,
     // 設定管理
@@ -94,7 +94,7 @@ export default Manifest({
     Co2DailyAirQualityReportFunctionDefinition,
     MeetingRoomAirQualityReviewFunctionDefinition,
     VentilationEffectReviewFunctionDefinition,
-    Co2SpikeWithSnapshotFunctionDefinition,
+    AirQualityAlertWithSnapshotFunctionDefinition,
     VentilationCheckWithCameraFunctionDefinition,
     EnvironmentAndCameraDailyDigestFunctionDefinition,
     // 設定管理

@@ -8,14 +8,14 @@ import type { SoraCamDevice } from "../../lib/soracom/mod.ts";
  */
 export const SoracomListSoraCamDevicesFunctionDefinition = DefineFunction({
   callback_id: "soracom_list_soracam_devices",
-  title: "SoraCam Device List",
-  description: "Fetch a list of SoraCam devices",
+  title: "SoraCamデバイス一覧",
+  description: "SoraCam デバイス一覧を取得して表示します",
   source_file: "functions/soracom_list_soracam_devices/mod.ts",
   input_parameters: {
     properties: {
       channel_id: {
         type: Schema.slack.types.channel_id,
-        description: "Channel to post results",
+        description: "結果を投稿するチャンネル",
       },
     },
     required: ["channel_id"],
@@ -24,11 +24,11 @@ export const SoracomListSoraCamDevicesFunctionDefinition = DefineFunction({
     properties: {
       device_count: {
         type: Schema.types.number,
-        description: "Number of devices returned",
+        description: "取得したデバイス数",
       },
       message: {
         type: Schema.types.string,
-        description: "Formatted device list message",
+        description: "整形済みのデバイス一覧メッセージ",
       },
     },
     required: ["device_count", "message"],
@@ -81,11 +81,11 @@ export function formatSoraCamDeviceListMessage(
 
 export default SlackFunction(
   SoracomListSoraCamDevicesFunctionDefinition,
-  async ({ inputs, client }) => {
+  async ({ inputs, client, env }) => {
     try {
       console.log(t("soracom.logs.fetching_soracam_devices"));
 
-      const soracomClient = createSoracomClientFromEnv();
+      const soracomClient = createSoracomClientFromEnv(env);
       const devices = await soracomClient.listSoraCamDevices();
 
       const message = formatSoraCamDeviceListMessage(devices);

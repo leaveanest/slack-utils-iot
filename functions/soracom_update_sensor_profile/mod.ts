@@ -1,6 +1,9 @@
 import { DefineFunction, Schema, SlackFunction } from "deno-slack-sdk/mod.ts";
 import { t } from "../../lib/i18n/mod.ts";
-import { upsertSensorProfile } from "../../lib/soracom/mod.ts";
+import {
+  resolveAirQualityCriteria,
+  upsertSensorProfile,
+} from "../../lib/soracom/mod.ts";
 import {
   channelIdSchema,
   imsiSchema,
@@ -15,42 +18,58 @@ import {
  */
 export const SoracomUpdateSensorProfileFunctionDefinition = DefineFunction({
   callback_id: "soracom_update_sensor_profile",
-  title: "Soracom Update Sensor Profile",
-  description: "Save a daily-report sensor profile into the datastore",
+  title: "センサープロファイル更新",
+  description: "日次レポート用のセンサープロファイルを保存します",
   source_file: "functions/soracom_update_sensor_profile/mod.ts",
   input_parameters: {
     properties: {
       sensor_name: {
         type: Schema.types.string,
-        description: "Display name for the sensor",
+        description: "センサーの表示名",
       },
       imsi: {
         type: Schema.types.string,
-        description: "IMSI of the subscriber (15 digits)",
+        description: "加入者の IMSI（15 桁）",
       },
       report_channel_id: {
         type: Schema.slack.types.channel_id,
-        description: "Channel where daily reports will be posted",
+        description: "日次レポートの投稿先チャンネル",
       },
       co2_threshold: {
         type: Schema.types.number,
-        description: "Optional CO2 threshold in ppm",
+        description: "CO2 しきい値（ppm、省略可）",
+      },
+      temperature_min: {
+        type: Schema.types.number,
+        description: "温度下限しきい値（C、省略可）",
+      },
+      temperature_max: {
+        type: Schema.types.number,
+        description: "温度上限しきい値（C、省略可）",
+      },
+      humidity_min: {
+        type: Schema.types.number,
+        description: "湿度下限しきい値（%、省略可）",
+      },
+      humidity_max: {
+        type: Schema.types.number,
+        description: "湿度上限しきい値（%、省略可）",
       },
       soracam_device_id: {
         type: Schema.types.string,
-        description: "Optional paired SoraCam device ID",
+        description: "連携する SoraCam デバイス ID（省略可）",
       },
       lookback_hours: {
         type: Schema.types.number,
-        description: "Optional digest lookback window in hours",
+        description: "ダイジェスト参照時間（時間、省略可）",
       },
       channel_id: {
         type: Schema.slack.types.channel_id,
-        description: "Channel to post the confirmation message",
+        description: "確認メッセージを投稿するチャンネル",
       },
       user_id: {
         type: Schema.slack.types.user_id,
-        description: "User who triggered the update",
+        description: "更新を実行したユーザー",
       },
     },
     required: [
@@ -69,11 +88,11 @@ export const SoracomUpdateSensorProfileFunctionDefinition = DefineFunction({
       },
       sensor_name: {
         type: Schema.types.string,
-        description: "Display name for the sensor",
+        description: "センサーの表示名",
       },
       message: {
         type: Schema.types.string,
-        description: "Confirmation message",
+        description: "確認メッセージ",
       },
     },
     required: ["imsi", "sensor_name", "message"],
@@ -85,6 +104,10 @@ export type SensorProfileFormInput = {
   imsi: string;
   reportChannelId: string;
   co2Threshold?: number;
+  temperatureMin?: number;
+  temperatureMax?: number;
+  humidityMin?: number;
+  humidityMax?: number;
   soraCamDeviceId?: string;
   lookbackHours?: number;
 };
@@ -101,6 +124,10 @@ export function normalizeSensorProfileInputs(
     imsi: string;
     report_channel_id: string;
     co2_threshold?: number;
+    temperature_min?: number;
+    temperature_max?: number;
+    humidity_min?: number;
+    humidity_max?: number;
     soracam_device_id?: string;
     lookback_hours?: number;
   },
@@ -124,11 +151,27 @@ export function normalizeSensorProfileInputs(
     throw new Error(t("errors.invalid_input"));
   }
 
+  try {
+    resolveAirQualityCriteria({
+      co2Max: inputs.co2_threshold,
+      temperatureMin: inputs.temperature_min,
+      temperatureMax: inputs.temperature_max,
+      humidityMin: inputs.humidity_min,
+      humidityMax: inputs.humidity_max,
+    });
+  } catch {
+    throw new Error(t("errors.invalid_input"));
+  }
+
   return {
     sensorName,
     imsi,
     reportChannelId,
     co2Threshold: inputs.co2_threshold,
+    temperatureMin: inputs.temperature_min,
+    temperatureMax: inputs.temperature_max,
+    humidityMin: inputs.humidity_min,
+    humidityMax: inputs.humidity_max,
     soraCamDeviceId: soraCamDeviceId
       ? soraCamDeviceIdSchema.parse(soraCamDeviceId)
       : undefined,
@@ -145,6 +188,13 @@ export function normalizeSensorProfileInputs(
 export function formatSensorProfileSavedMessage(
   profile: SensorProfileFormInput,
 ): string {
+  const criteria = resolveAirQualityCriteria({
+    co2Max: profile.co2Threshold,
+    temperatureMin: profile.temperatureMin,
+    temperatureMax: profile.temperatureMax,
+    humidityMin: profile.humidityMin,
+    humidityMax: profile.humidityMax,
+  });
   const lines = [
     t("soracom.messages.sensor_profile_updated", {
       sensorName: profile.sensorName,
@@ -153,15 +203,18 @@ export function formatSensorProfileSavedMessage(
     t("soracom.messages.sensor_profile_report_channel", {
       channelId: profile.reportChannelId,
     }),
+    t("soracom.messages.sensor_profile_co2_threshold", {
+      threshold: formatNumber(criteria.co2Max),
+    }),
+    t("soracom.messages.sensor_profile_temperature_range", {
+      min: formatNumber(criteria.temperatureMin),
+      max: formatNumber(criteria.temperatureMax),
+    }),
+    t("soracom.messages.sensor_profile_humidity_range", {
+      min: formatNumber(criteria.humidityMin),
+      max: formatNumber(criteria.humidityMax),
+    }),
   ];
-
-  if (profile.co2Threshold !== undefined) {
-    lines.push(
-      t("soracom.messages.sensor_profile_co2_threshold", {
-        threshold: formatNumber(profile.co2Threshold),
-      }),
-    );
-  }
 
   if (profile.soraCamDeviceId !== undefined) {
     lines.push(

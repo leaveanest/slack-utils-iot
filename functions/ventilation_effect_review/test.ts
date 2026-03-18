@@ -16,8 +16,25 @@ const beforeSummary: AirQualitySummary = {
   humidity: {
     average: 55,
   },
+  criteria: {
+    co2Max: 1000,
+    temperatureMin: 18,
+    temperatureMax: 28,
+    humidityMin: 40,
+    humidityMax: 70,
+  },
   co2Threshold: 1000,
   co2ThresholdExceededCount: 5,
+  temperatureRange: {
+    min: 18,
+    max: 28,
+  },
+  temperatureOutOfRangeCount: 0,
+  humidityRange: {
+    min: 40,
+    max: 70,
+  },
+  humidityOutOfRangeCount: 0,
 };
 
 const afterSummary: AirQualitySummary = {
@@ -31,8 +48,25 @@ const afterSummary: AirQualitySummary = {
   humidity: {
     average: 47,
   },
+  criteria: {
+    co2Max: 1000,
+    temperatureMin: 18,
+    temperatureMax: 28,
+    humidityMin: 40,
+    humidityMax: 70,
+  },
   co2Threshold: 1000,
   co2ThresholdExceededCount: 1,
+  temperatureRange: {
+    min: 18,
+    max: 28,
+  },
+  temperatureOutOfRangeCount: 0,
+  humidityRange: {
+    min: 40,
+    max: 70,
+  },
+  humidityOutOfRangeCount: 0,
 };
 
 const improvementComparison: AirQualitySummaryDelta = {
@@ -87,20 +121,24 @@ Deno.test({
       "440101234567890",
       Date.parse("2026-03-16T09:00:00.000Z"),
       {
+        ...beforeSummary,
         sampleCount: 0,
         co2: {},
         temperature: {},
         humidity: {},
-        co2Threshold: 1000,
         co2ThresholdExceededCount: 0,
+        temperatureOutOfRangeCount: 0,
+        humidityOutOfRangeCount: 0,
       },
       {
+        ...afterSummary,
         sampleCount: 0,
         co2: {},
         temperature: {},
         humidity: {},
-        co2Threshold: 1000,
         co2ThresholdExceededCount: 0,
+        temperatureOutOfRangeCount: 0,
+        humidityOutOfRangeCount: 0,
       },
       {
         co2: {},

@@ -4,21 +4,30 @@
  * Soracom REST APIとの通信を管理するクライアントとユーティリティを提供します。
  */
 
-export { createSoracomClientFromEnv, SoracomClient } from "./client.ts";
+export {
+  createSoracomClientFromEnv,
+  normalizeAirStatsDataPoints,
+  SoracomClient,
+} from "./client.ts";
 export type { SoracomClientConfig } from "./client.ts";
 export {
   bucketAirQualityEntries,
   compareAirQualitySummaries,
+  DEFAULT_AIR_QUALITY_CRITERIA,
   extractAirQualitySample,
   filterAirQualityEntriesByTimeRange,
   findLargestCo2Spike,
   findPeakCo2Bucket,
+  resolveAirQualityCriteria,
   summarizeAirQualityEntries,
 } from "./air_quality.ts";
 export type {
   AirQualityBucketSummary,
+  AirQualityCriteria,
+  AirQualityCriteriaInput,
   AirQualityMetricDelta,
   AirQualityMetricSummary,
+  AirQualityRange,
   AirQualitySample,
   AirQualitySpike,
   AirQualitySummary,
@@ -28,7 +37,6 @@ export {
   ALERT_CHANNEL_ID,
   getChannelId,
   REPORT_CHANNEL_ID,
-  SCHEDULE_START_TIME,
   SORACAM_CHANNEL_ID,
 } from "./config.ts";
 export {

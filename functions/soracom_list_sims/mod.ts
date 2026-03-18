@@ -7,14 +7,14 @@ import { createSoracomClientFromEnv } from "../../lib/soracom/mod.ts";
  */
 export const SoracomListSimsFunctionDefinition = DefineFunction({
   callback_id: "soracom_list_sims",
-  title: "Soracom SIM List",
-  description: "Fetch a list of SIMs from Soracom",
+  title: "SORACOM SIM一覧",
+  description: "SORACOM の SIM 一覧を取得して表示します",
   source_file: "functions/soracom_list_sims/mod.ts",
   input_parameters: {
     properties: {
       channel_id: {
         type: Schema.slack.types.channel_id,
-        description: "Channel to post results",
+        description: "結果を投稿するチャンネル",
       },
     },
     required: ["channel_id"],
@@ -23,11 +23,11 @@ export const SoracomListSimsFunctionDefinition = DefineFunction({
     properties: {
       sim_count: {
         type: Schema.types.number,
-        description: "Number of SIMs returned",
+        description: "取得した SIM 数",
       },
       message: {
         type: Schema.types.string,
-        description: "Formatted SIM list message",
+        description: "整形済みの SIM 一覧メッセージ",
       },
     },
     required: ["sim_count", "message"],
@@ -80,11 +80,11 @@ export function formatSimListMessage(
 
 export default SlackFunction(
   SoracomListSimsFunctionDefinition,
-  async ({ inputs, client }) => {
+  async ({ inputs, client, env }) => {
     try {
       console.log(t("soracom.logs.fetching_sims"));
 
-      const soracomClient = createSoracomClientFromEnv();
+      const soracomClient = createSoracomClientFromEnv(env);
       const result = await soracomClient.listSims();
 
       const message = formatSimListMessage(result.sims);

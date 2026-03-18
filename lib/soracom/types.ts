@@ -120,6 +120,14 @@ export interface SoracomSensorProfile {
   reportChannelId: string;
   /** CO2しきい値 */
   co2Threshold?: number;
+  /** 温度下限 */
+  temperatureMin?: number;
+  /** 温度上限 */
+  temperatureMax?: number;
+  /** 湿度下限 */
+  humidityMin?: number;
+  /** 湿度上限 */
+  humidityMax?: number;
   /** 連携済み SoraCam デバイスID */
   soraCamDeviceId?: string;
   /** ダイジェスト参照時間 */

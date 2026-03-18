@@ -13,6 +13,8 @@
  * ```
  */
 
+import { getOptionalEnv } from "../env.ts";
+
 /**
  * 環境変数から通知先チャンネルIDを取得します
  *
@@ -29,8 +31,8 @@ export function getChannelId(
   envKey: string,
   fallback = "C0000000000",
 ): string {
-  return Deno.env.get(envKey) ||
-    Deno.env.get("SORACOM_DEFAULT_CHANNEL_ID") ||
+  return getOptionalEnv(envKey) ||
+    getOptionalEnv("SORACOM_DEFAULT_CHANNEL_ID") ||
     fallback;
 }
 
@@ -54,15 +56,3 @@ export const REPORT_CHANNEL_ID = getChannelId("SORACOM_REPORT_CHANNEL_ID");
  * 環境変数: SORACOM_SORACAM_CHANNEL_ID または SORACOM_DEFAULT_CHANNEL_ID
  */
 export const SORACAM_CHANNEL_ID = getChannelId("SORACOM_SORACAM_CHANNEL_ID");
-
-/**
- * Scheduled Triggerの開始日時を取得します
- *
- * 環境変数: SORACOM_SCHEDULE_START_TIME
- * デフォルト: 2026-01-01T00:00:00Z
- *
- * @returns ISO 8601形式の日時文字列
- */
-export const SCHEDULE_START_TIME = Deno.env.get(
-  "SORACOM_SCHEDULE_START_TIME",
-) || "2026-01-01T00:00:00Z";

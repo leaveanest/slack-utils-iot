@@ -108,6 +108,24 @@ Deno.test({
 });
 
 Deno.test({
+  name: "Datastoreに値がない場合はruntime envをフォールバックとして使う",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const client = createMockClient();
+    const value = await getConfigValue(
+      client,
+      "alert_channel_id",
+      "CFALLBACK",
+      { SORACOM_ALERT_CHANNEL_ID: "CENV1234567" },
+    );
+    assertEquals(value, "CENV1234567");
+  },
+});
+
+Deno.test({
   name: "設定値を正常に保存できる",
   sanitizeResources: false,
   sanitizeOps: false,

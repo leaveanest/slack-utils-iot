@@ -22,8 +22,25 @@ const summaryWithData: AirQualitySummary = {
     max: 54,
     average: 47.8,
   },
+  criteria: {
+    co2Max: 1000,
+    temperatureMin: 18,
+    temperatureMax: 28,
+    humidityMin: 40,
+    humidityMax: 70,
+  },
   co2Threshold: 1000,
   co2ThresholdExceededCount: 2,
+  temperatureRange: {
+    min: 18,
+    max: 28,
+  },
+  temperatureOutOfRangeCount: 0,
+  humidityRange: {
+    min: 40,
+    max: 70,
+  },
+  humidityOutOfRangeCount: 0,
 };
 
 const events: SoraCamEvent[] = [
@@ -82,12 +99,14 @@ Deno.test({
       "440101234567890",
       "dev-1",
       {
+        ...summaryWithData,
         sampleCount: 0,
         co2: {},
         temperature: {},
         humidity: {},
-        co2Threshold: 1000,
         co2ThresholdExceededCount: 0,
+        temperatureOutOfRangeCount: 0,
+        humidityOutOfRangeCount: 0,
       },
       [],
     );
