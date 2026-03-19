@@ -16,6 +16,14 @@ const SoracomExportAllSoraCamImagesWorkflow = DefineWorkflow({
         type: Schema.slack.types.channel_id,
         description: "対象チャンネル",
       },
+      job_key: {
+        type: Schema.types.string,
+        description: "内部用ジョブキー",
+      },
+      task_key: {
+        type: Schema.types.string,
+        description: "内部用タスクキー",
+      },
     },
     required: ["channel_id"],
   },
@@ -25,6 +33,8 @@ SoracomExportAllSoraCamImagesWorkflow.addStep(
   SoracomExportAllSoraCamImagesFunctionDefinition,
   {
     channel_id: SoracomExportAllSoraCamImagesWorkflow.inputs.channel_id,
+    job_key: SoracomExportAllSoraCamImagesWorkflow.inputs.job_key,
+    task_key: SoracomExportAllSoraCamImagesWorkflow.inputs.task_key,
   },
 );
 

@@ -102,6 +102,15 @@ deno test --allow-env --allow-read --allow-net functions/<name>/test.ts
 slack run workflows/soracom_sim_anomaly_alert_workflow
 ```
 
+- Slack custom function の実行時間制限は、`slack run` と `slack deploy`
+  後で異なる前提で考えてください。少なくとも 2026-03 時点では、`slack run`
+  のローカル実行は 15 秒、deploy 後の通常実行は 60 秒、interactivity payload
+  由来の deployed function は 10 秒です。
+- ローカルの `slack run` では timeout 後に `token_revoked`
+  が見えることがあります。ローカルで発生した 15 秒 timeout
+  を、そのまま本番の 60 秒制限と同一視しないでください。
+- 一方で、ローカルで timeout しない設計に寄せると再現確認はしやすいです。
+  実装時は「ローカル再現性」と「deploy 後の実運用 throughput」を分けて判断してください。
 - `slack.json` の `local` 環境は `.env` を読む前提です。
 - `manifest.ts` では `SLACK_APP_NAME` と `SLACK_APP_DESCRIPTION`
   を環境変数から読んでいます。名称や説明に関わる変更時はこの挙動を壊さないでください。

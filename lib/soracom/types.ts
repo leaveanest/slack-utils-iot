@@ -56,6 +56,8 @@ export interface SoracomSimListResult {
   sims: SoracomSim[];
   /** 結果件数 */
   total: number;
+  /** 次ページ取得用キー */
+  nextKey?: string;
 }
 
 /**
@@ -93,7 +95,7 @@ export interface HarvestDataEntry {
   /** データ受信日時（UNIXタイムスタンプミリ秒） */
   time: number;
   /** データ内容（JSON） */
-  content: Record<string, unknown>;
+  content: unknown;
   /** コンテントタイプ */
   contentType: string;
 }
@@ -136,6 +138,102 @@ export interface SoracomSensorProfile {
   updatedBy?: string;
   /** 更新日時 */
   updatedAt?: string;
+}
+
+/**
+ * SoraCam 動体検知画像アップロードジョブ
+ */
+export interface SoracomMotionCaptureJob {
+  /** ジョブ識別子（channel_id:device_id） */
+  jobKey: string;
+  /** 投稿先チャンネル */
+  channelId: string;
+  /** 対象デバイス */
+  deviceId: string;
+  /** 親メッセージの thread_ts */
+  threadTs: string;
+  /** 固定ウィンドウ開始時刻 */
+  windowStartMs: number;
+  /** 固定ウィンドウ終了時刻 */
+  windowEndMs: number;
+  /** 降順のイベント時刻一覧 */
+  eventTimes: number[];
+  /** 次に処理する index */
+  nextIndex: number;
+  /** イベント総件数 */
+  totalEventCount: number;
+  /** アップロード済み件数 */
+  uploadedCount: number;
+  /** 失敗件数 */
+  failedCount: number;
+  /** 初期化 claim ID */
+  claimId?: string;
+  /** 次回自動継続実行用 trigger ID */
+  continuationTriggerId?: string;
+  /** 状態 */
+  status: "starting" | "pending" | "completed";
+  /** 作成日時 */
+  createdAt: string;
+  /** 更新日時 */
+  updatedAt: string;
+}
+
+/**
+ * SoraCam 全台画像エクスポートジョブ
+ */
+export interface SoracomAllSoraCamImageExportJob {
+  /** ジョブ識別子（channel_id） */
+  jobKey: string;
+  /** 投稿先チャンネル */
+  channelId: string;
+  /** 進捗メッセージの ts */
+  messageTs: string;
+  /** デバイス総数 */
+  totalDeviceCount: number;
+  /** 初期化 claim ID */
+  claimId?: string;
+  /** 状態 */
+  status: "starting" | "pending" | "completed";
+  /** 作成日時 */
+  createdAt: string;
+  /** 更新日時 */
+  updatedAt: string;
+}
+
+/**
+ * SoraCam 全台画像エクスポートの各デバイス処理状態
+ */
+export interface SoracomAllSoraCamImageExportTask {
+  /** タスク識別子 */
+  taskKey: string;
+  /** 親ジョブ識別子 */
+  jobKey: string;
+  /** 投稿先チャンネル */
+  channelId: string;
+  /** デバイス ID */
+  deviceId: string;
+  /** デバイス表示名 */
+  deviceName: string;
+  /** 表示順 */
+  sortIndex: number;
+  /** claim ID */
+  claimId?: string;
+  /** エクスポート ID */
+  exportId: string;
+  /** 状態 */
+  status: "queued" | "processing" | "uploaded" | "failed";
+  /** エクスポート済み画像 URL */
+  imageUrl: string;
+  /** スナップショット取得時刻 */
+  snapshotTime?: number;
+  /** Slack ファイル ID */
+  slackFileId?: string;
+  /** 失敗詳細 */
+  errorMessage?: string;
+  /** 作成日時 */
+  createdAt: string;
+  /** 更新日時 */
+  updatedAt: string;
 }
 
 /**

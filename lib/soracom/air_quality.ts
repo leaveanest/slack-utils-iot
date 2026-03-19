@@ -96,7 +96,7 @@ export const DEFAULT_AIR_QUALITY_CRITERIA: AirQualityCriteria = {
 const AIR_QUALITY_KEYS = {
   co2: ["co2", "co2ppm", "co2_ppm"],
   temperature: ["temperature", "temp"],
-  humidity: ["humidity", "hum"],
+  humidity: ["humidity", "hum", "humid"],
 } as const;
 
 /**

@@ -68,3 +68,26 @@ Deno.test({
     assertEquals(message.includes("7C12345678AB"), true);
   },
 });
+
+Deno.test({
+  name: "状態が未設定でもプレースホルダーではなくハイフンを表示する",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const devices = [
+      {
+        deviceId: "7CDDE907B5FF",
+        name: "テスト用カメラ",
+        firmwareVersion: "4.58.0.171",
+        lastConnectedTime: 1773779980925,
+      },
+    ] as unknown as SoraCamDevice[];
+
+    const message = formatSoraCamDeviceListMessage(devices);
+
+    assertEquals(message.includes("状態: -"), true);
+    assertEquals(message.includes("{status}"), false);
+  },
+});

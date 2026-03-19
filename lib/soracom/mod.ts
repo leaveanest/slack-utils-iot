@@ -41,11 +41,24 @@ export {
   SORACAM_CHANNEL_ID,
 } from "./config.ts";
 export {
-  CONFIG_KEYS,
-  getAllConfigValues,
-  getConfigValue,
-  setConfigValue,
-} from "./datastore.ts";
+  buildAllSoraCamImageExportJobKey,
+  deleteAllSoraCamImageExportJob,
+  getAllSoraCamImageExportJob,
+  upsertAllSoraCamImageExportJob,
+} from "./all_soracam_image_export_jobs.ts";
+export {
+  buildAllSoraCamImageExportTaskKey,
+  deleteAllSoraCamImageExportTasksByJob,
+  getAllSoraCamImageExportTask,
+  listAllSoraCamImageExportTasks,
+  upsertAllSoraCamImageExportTask,
+} from "./all_soracam_image_export_tasks.ts";
+export {
+  buildMotionCaptureJobKey,
+  deleteMotionCaptureJob,
+  getMotionCaptureJob,
+  upsertMotionCaptureJob,
+} from "./motion_capture_jobs.ts";
 export { listSensorProfiles, upsertSensorProfile } from "./sensor_profiles.ts";
 export type { SoracomSensorProfileInput } from "./sensor_profiles.ts";
 export {
@@ -71,8 +84,11 @@ export type {
   SoraCamImageExport,
   SoraCamRecording,
   SoraCamRecordingsAndEvents,
+  SoracomAllSoraCamImageExportJob,
+  SoracomAllSoraCamImageExportTask,
   SoracomApiError,
   SoracomAuthResponse,
+  SoracomMotionCaptureJob,
   SoracomSensorProfile,
   SoracomSim,
   SoracomSimListResult,

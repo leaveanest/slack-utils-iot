@@ -3,7 +3,7 @@ import type { SoracomClient } from "./client.ts";
 import type { SoraCamImageExport, SoraCamRecording } from "./types.ts";
 
 const RECORDING_LOOKBACK_MS = 6 * 60 * 60 * 1000;
-const RECORDING_OFFSET_MS = 60 * 1000;
+const RECORDING_OFFSET_MS = 10 * 1000;
 const EXPORT_POLL_INTERVAL_MS = 2 * 1000;
 const EXPORT_TIMEOUT_MS = 60 * 1000;
 

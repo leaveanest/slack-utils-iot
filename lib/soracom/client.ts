@@ -79,6 +79,12 @@ interface RawAirTrafficStats {
   downloadPacketSizeTotal?: number;
 }
 
+interface RawHarvestDataEntry {
+  time?: number;
+  content?: unknown;
+  contentType?: string;
+}
+
 interface RawAirStatsDataPoint {
   date?: string | number;
   unixtime?: number;
@@ -96,11 +102,28 @@ interface AirTrafficStatsTotals {
   downloadPacketSizeTotal: number;
 }
 
+interface RawSoraCamRecordingEvent {
+  type?: string;
+  startTime?: number;
+  endTime?: number;
+}
+
+interface RawSoraCamDevice {
+  connected?: boolean;
+  connectionStatus?: string;
+  deviceId?: string;
+  firmwareVersion?: string;
+  lastConnectedTime?: number | string;
+  name?: string;
+  status?: string;
+}
+
 /** APIベースURL */
 const BASE_URLS: Record<string, string> = {
   jp: "https://api.soracom.io/v1",
   g: "https://g.api.soracom.io/v1",
 };
+const HARVEST_DATA_MAX_LIMIT = 1000;
 
 function getPrimaryProfile(
   rawSim: RawSoracomSim,
@@ -222,6 +245,142 @@ export function normalizeAirStatsDataPoints(
       downloadPacketSizeTotal: rawPoint.downloadPacketSizeTotal ?? 0,
     };
   });
+}
+
+function normalizeSoraCamRecordingEvents(
+  deviceId: string,
+  rawEvents: RawSoraCamRecordingEvent[],
+): SoraCamEvent[] {
+  return rawEvents
+    .filter((event) =>
+      typeof event.type === "string" &&
+      typeof event.startTime === "number"
+    )
+    .sort((left, right) => (right.startTime ?? 0) - (left.startTime ?? 0))
+    .map((event) => ({
+      deviceId,
+      eventType: event.type!,
+      eventTime: event.startTime!,
+      eventInfo: typeof event.endTime === "number"
+        ? { endTime: event.endTime }
+        : {},
+    }));
+}
+
+function normalizeSoraCamDeviceStatus(rawDevice: RawSoraCamDevice): string {
+  if (typeof rawDevice.status === "string" && rawDevice.status.length > 0) {
+    return rawDevice.status;
+  }
+
+  if (
+    typeof rawDevice.connectionStatus === "string" &&
+    rawDevice.connectionStatus.length > 0
+  ) {
+    return rawDevice.connectionStatus;
+  }
+
+  if (typeof rawDevice.connected === "boolean") {
+    return rawDevice.connected ? "online" : "offline";
+  }
+
+  return "-";
+}
+
+function normalizeSoraCamDeviceLastConnectedTime(
+  rawDevice: RawSoraCamDevice,
+): number {
+  if (
+    typeof rawDevice.lastConnectedTime === "number" &&
+    Number.isFinite(rawDevice.lastConnectedTime)
+  ) {
+    return rawDevice.lastConnectedTime;
+  }
+
+  if (typeof rawDevice.lastConnectedTime === "string") {
+    const parsed = Number(rawDevice.lastConnectedTime);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return 0;
+}
+
+function normalizeSoraCamDevices(payload: unknown): SoraCamDevice[] {
+  if (!Array.isArray(payload)) {
+    throw new Error("Unexpected sora cam devices response format");
+  }
+
+  return payload
+    .map((entry) => {
+      const rawDevice = entry as RawSoraCamDevice;
+      if (
+        typeof rawDevice.deviceId !== "string" ||
+        rawDevice.deviceId.length === 0
+      ) {
+        return null;
+      }
+
+      return {
+        deviceId: rawDevice.deviceId,
+        name: typeof rawDevice.name === "string" ? rawDevice.name : "",
+        status: normalizeSoraCamDeviceStatus(rawDevice),
+        firmwareVersion: typeof rawDevice.firmwareVersion === "string"
+          ? rawDevice.firmwareVersion
+          : "",
+        lastConnectedTime: normalizeSoraCamDeviceLastConnectedTime(rawDevice),
+      } satisfies SoraCamDevice;
+    })
+    .filter((device): device is SoraCamDevice => device !== null);
+}
+
+function normalizeHarvestDataContent(
+  content: unknown,
+  contentType?: string,
+): unknown {
+  if (
+    typeof content === "string" &&
+    typeof contentType === "string" &&
+    contentType.toLowerCase().includes("application/json")
+  ) {
+    try {
+      return JSON.parse(content);
+    } catch {
+      return content;
+    }
+  }
+
+  return content;
+}
+
+function normalizeHarvestDataEntries(payload: unknown): HarvestDataEntry[] {
+  if (!Array.isArray(payload)) {
+    throw new Error("Unexpected harvest data response format");
+  }
+
+  return payload
+    .map((entry) => {
+      const rawEntry = entry as RawHarvestDataEntry;
+      const time = rawEntry.time;
+      const contentType = rawEntry.contentType;
+      if (
+        typeof time !== "number" ||
+        !Number.isFinite(time) ||
+        typeof contentType !== "string"
+      ) {
+        return null;
+      }
+
+      return {
+        time,
+        contentType,
+        content: normalizeHarvestDataContent(
+          rawEntry.content,
+          contentType,
+        ),
+      } satisfies HarvestDataEntry;
+    })
+    .filter((entry): entry is HarvestDataEntry => entry !== null);
 }
 
 /**
@@ -367,11 +526,46 @@ export class SoracomClient {
     const sims = (await response.json() as RawSoracomSim[]).map(
       normalizeSoracomSim,
     );
+    const nextKey = response.headers.get("x-soracom-next-key") ?? undefined;
 
     return {
       sims,
       total: sims.length,
+      nextKey,
     };
+  }
+
+  /**
+   * すべての SIM 一覧を取得します。
+   *
+   * `x-soracom-next-key` ヘッダーをたどってページネーションを継続します。
+   *
+   * @param pageSize - 1ページあたりの取得件数（デフォルト: 100）
+   * @returns 全 SIM 一覧
+   * @throws {Error} ページネーションが不正な場合、またはAPI呼び出しに失敗した場合
+   */
+  async listAllSims(pageSize = 100): Promise<SoracomSim[]> {
+    const sims: SoracomSim[] = [];
+    const seenKeys = new Set<string>();
+    let nextKey: string | undefined;
+
+    while (true) {
+      const page = await this.listSims(pageSize, nextKey);
+      sims.push(...page.sims);
+
+      if (!page.nextKey) {
+        return sims;
+      }
+
+      if (seenKeys.has(page.nextKey)) {
+        throw new Error(
+          "Unexpected duplicate pagination key while listing SIMs",
+        );
+      }
+
+      seenKeys.add(page.nextKey);
+      nextKey = page.nextKey;
+    }
   }
 
   /**
@@ -469,13 +663,13 @@ export class SoracomClient {
   }
 
   /**
-   * Harvest Dataからデバイスデータを取得します
+   * Harvest Dataから指定期間のデバイスデータを全件取得します。
    *
    * @param imsi - IMSI
    * @param from - 開始日時（UNIXタイムスタンプミリ秒）
    * @param to - 終了日時（UNIXタイムスタンプミリ秒）
    * @param sort - ソート順（"asc" または "desc"）
-   * @param limit - 取得件数（デフォルト: 100）
+   * @param limit - 1回の API 呼び出しで取得する件数（デフォルト: 1000）
    * @returns Harvest Dataエントリ一覧
    * @throws {Error} API呼び出しに失敗した場合
    *
@@ -491,8 +685,66 @@ export class SoracomClient {
     from: number,
     to: number,
     sort: "asc" | "desc" = "desc",
-    limit = 100,
+    limit = HARVEST_DATA_MAX_LIMIT,
   ): Promise<HarvestDataResult> {
+    const pageSize = Math.min(
+      Math.max(Math.trunc(limit), 1),
+      HARVEST_DATA_MAX_LIMIT,
+    );
+    const entries: HarvestDataEntry[] = [];
+
+    let nextFrom = from;
+    let nextTo = to;
+
+    while (nextFrom <= nextTo) {
+      const batch = await this.getHarvestDataPage(
+        imsi,
+        nextFrom,
+        nextTo,
+        sort,
+        pageSize,
+      );
+      if (batch.length === 0) {
+        break;
+      }
+
+      entries.push(...batch);
+
+      if (batch.length < pageSize) {
+        break;
+      }
+
+      const edgeTime = sort === "asc"
+        ? batch[batch.length - 1].time + 1
+        : batch[batch.length - 1].time - 1;
+
+      if (!Number.isFinite(edgeTime)) {
+        break;
+      }
+
+      if (sort === "asc") {
+        if (edgeTime <= nextFrom) {
+          throw new Error("Harvest data pagination did not advance");
+        }
+        nextFrom = edgeTime;
+      } else {
+        if (edgeTime >= nextTo) {
+          throw new Error("Harvest data pagination did not advance");
+        }
+        nextTo = edgeTime;
+      }
+    }
+
+    return { imsi, entries };
+  }
+
+  private async getHarvestDataPage(
+    imsi: string,
+    from: number,
+    to: number,
+    sort: "asc" | "desc",
+    limit: number,
+  ): Promise<HarvestDataEntry[]> {
     const params = new URLSearchParams({
       from: String(from),
       to: String(to),
@@ -503,9 +755,8 @@ export class SoracomClient {
     const response = await this.request(
       `/data/Subscriber/${imsi}?${params.toString()}`,
     );
-    const entries: HarvestDataEntry[] = await response.json();
 
-    return { imsi, entries };
+    return normalizeHarvestDataEntries(await response.json());
   }
 
   /**
@@ -522,8 +773,7 @@ export class SoracomClient {
    */
   async listSoraCamDevices(): Promise<SoraCamDevice[]> {
     const response = await this.request("/sora_cam/devices");
-    const devices: SoraCamDevice[] = await response.json();
-    return devices;
+    return normalizeSoraCamDevices(await response.json());
   }
 
   /**
@@ -554,7 +804,12 @@ export class SoracomClient {
     const response = await this.request(
       `/sora_cam/devices/${deviceId}/recordings_and_events?${params.toString()}`,
     );
-    const data = await response.json() as Partial<SoraCamRecordingsAndEvents>;
+    const parsedData = await response.json().catch(() => null) as
+      | Partial<SoraCamRecordingsAndEvents>
+      | null;
+    const data = parsedData && typeof parsedData === "object"
+      ? parsedData
+      : {};
 
     return {
       records: Array.isArray(data.records) ? data.records : [],
@@ -585,17 +840,17 @@ export class SoracomClient {
     to: number,
     limit = 20,
   ): Promise<SoraCamEvent[]> {
-    const params = new URLSearchParams({
-      from: String(from),
-      to: String(to),
-      limit: String(limit),
-    });
-
-    const response = await this.request(
-      `/sora_cam/devices/${deviceId}/events?${params.toString()}`,
+    const recordingsAndEvents = await this.listSoraCamRecordingsAndEvents(
+      deviceId,
+      from,
+      to,
+      "desc",
     );
-    const events: SoraCamEvent[] = await response.json();
-    return events;
+
+    return normalizeSoraCamRecordingEvents(
+      deviceId,
+      recordingsAndEvents.events,
+    ).slice(0, limit);
   }
 
   /**

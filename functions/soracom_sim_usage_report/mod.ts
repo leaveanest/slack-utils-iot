@@ -5,7 +5,6 @@ import {
   formatBytes,
 } from "../../lib/soracom/mod.ts";
 import type { AirStatsResult, SoracomSim } from "../../lib/soracom/mod.ts";
-import { CONFIG_KEYS, getConfigValue } from "../../lib/soracom/datastore.ts";
 import { statsPeriodSchema } from "../../lib/validation/schemas.ts";
 
 const STATS_PERIOD_OPTIONS = ["day", "month"] as const;
@@ -171,14 +170,6 @@ export default SlackFunction(
         t("soracom.logs.generating_usage_report", { period }),
       );
 
-      // Datastoreからチャンネルを解決（フォールバック: トリガーで指定された値）
-      const channelId = await getConfigValue(
-        client,
-        CONFIG_KEYS.REPORT_CHANNEL_ID,
-        inputs.channel_id,
-        env,
-      );
-
       const soracomClient = createSoracomClientFromEnv(env);
 
       // SIM一覧を取得
@@ -227,7 +218,7 @@ export default SlackFunction(
       }
 
       await client.chat.postMessage({
-        channel: channelId,
+        channel: inputs.channel_id,
         text: message,
       });
 

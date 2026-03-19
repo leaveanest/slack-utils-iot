@@ -71,17 +71,11 @@ SLACK_APP_DESCRIPTION="SORACOM utilities for Slack"  # アプリの説明
 SORACOM_AUTH_KEY_ID=your-auth-key-id
 SORACOM_AUTH_KEY=your-auth-key
 SORACOM_COVERAGE_TYPE=jp                    # jp または g
-
-# Slack Channel Configuration (optional)
-SORACOM_DEFAULT_CHANNEL_ID=C0123456789     # 共通の既定通知先
-SORACOM_ALERT_CHANNEL_ID=C0123456789       # SIM異常検知
-SORACOM_REPORT_CHANNEL_ID=C0123456789      # 日次・週次レポート
-SORACOM_SORACAM_CHANNEL_ID=C0123456789     # SoraCam 画像付き通知
 ```
 
 `SORACOM_AUTH_KEY_ID` と `SORACOM_AUTH_KEY` は SORACOM API を使う Function
-の実行に必須です。チャンネル関連の環境変数は未設定でも動作しますが、 未設定時は
-`SORACOM_DEFAULT_CHANNEL_ID`、それも無ければコード内のフォールバック値が使われます。
+の実行に必須です。通知先チャンネルは各 Workflow / Trigger 側で `channel_id`
+を明示的に指定してください。
 
 ### slack.json 設定
 
@@ -157,15 +151,12 @@ Functions は custom step として再利用する中心的な提供物です。
 
 | Function                                                                                             | 役割                                 |
 | ---------------------------------------------------------------------------------------------------- | ------------------------------------ |
-| [`functions/soracom_get_air_usage/mod.ts`](functions/soracom_get_air_usage/mod.ts)                   | Air 通信量取得と集計                 |
 | [`functions/soracom_get_harvest_data/mod.ts`](functions/soracom_get_harvest_data/mod.ts)             | Harvest Data 取得と表示              |
 | [`functions/soracom_list_soracam_devices/mod.ts`](functions/soracom_list_soracam_devices/mod.ts)     | SoraCam デバイス一覧取得             |
-| [`functions/soracom_get_soracam_events/mod.ts`](functions/soracom_get_soracam_events/mod.ts)         | SoraCam イベント取得                 |
 | [`functions/soracom_export_soracam_image/mod.ts`](functions/soracom_export_soracam_image/mod.ts)     | SoraCam 画像エクスポート             |
 | [`functions/soracom_sim_anomaly_alert/mod.ts`](functions/soracom_sim_anomaly_alert/mod.ts)           | 異常ステータスの判定と共有内容の生成 |
 | [`functions/soracom_soracam_motion_capture/mod.ts`](functions/soracom_soracam_motion_capture/mod.ts) | 直近イベントの抽出と画像エクスポート |
 | [`functions/soracom_sim_usage_report/mod.ts`](functions/soracom_sim_usage_report/mod.ts)             | SIM 通信量集計とレポート生成         |
-| [`functions/soracom_update_config/mod.ts`](functions/soracom_update_config/mod.ts)                   | Datastore 設定の更新と確認           |
 
 ### Workflows
 
@@ -186,17 +177,14 @@ Builder や利用者独自の Workflow から Function を custom step
 | Workflow                                                                                                   | 用途                       |
 | ---------------------------------------------------------------------------------------------------------- | -------------------------- |
 | [`workflows/soracom_sim_usage_report_workflow.ts`](workflows/soracom_sim_usage_report_workflow.ts)         | SIM の通信量サマリーを生成 |
-| [`workflows/soracom_get_air_usage_workflow.ts`](workflows/soracom_get_air_usage_workflow.ts)               | 指定 SIM の通信量を確認    |
 | [`workflows/soracom_get_harvest_data_workflow.ts`](workflows/soracom_get_harvest_data_workflow.ts)         | Harvest Data を確認        |
 | [`workflows/soracom_list_soracam_devices_workflow.ts`](workflows/soracom_list_soracam_devices_workflow.ts) | SoraCam デバイス一覧を確認 |
-| [`workflows/soracom_get_soracam_events_workflow.ts`](workflows/soracom_get_soracam_events_workflow.ts)     | SoraCam イベント履歴を確認 |
 
 #### 現場確認・オペレーション
 
 | Workflow                                                                                                   | 用途                                 |
 | ---------------------------------------------------------------------------------------------------------- | ------------------------------------ |
 | [`workflows/soracom_export_soracam_image_workflow.ts`](workflows/soracom_export_soracam_image_workflow.ts) | SoraCam 録画から画像を切り出して確認 |
-| [`workflows/soracom_update_config_workflow.ts`](workflows/soracom_update_config_workflow.ts)               | 通知先や各種設定を更新               |
 
 ### Triggers
 

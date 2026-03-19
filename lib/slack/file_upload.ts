@@ -39,6 +39,8 @@ export interface SlackFileUploadOptions {
   contentType?: string;
   /** 代替テキスト */
   altText?: string;
+  /** スレッド返信先 TS */
+  threadTs?: string;
 }
 
 /**
@@ -92,12 +94,18 @@ export async function uploadSlackFileToChannel(
     );
   }
 
+  const completeUploadRequest: Record<string, unknown> = {
+    files: [{ id: uploadUrlResponse.file_id, title: options.title }],
+    channel_id: channelId,
+  };
+
+  if (options.threadTs) {
+    completeUploadRequest.thread_ts = options.threadTs;
+  }
+
   const completeUploadResponse = await client.apiCall(
     "files.completeUploadExternal",
-    {
-      files: [{ id: uploadUrlResponse.file_id, title: options.title }],
-      channel_id: channelId,
-    },
+    completeUploadRequest,
   ) as SlackCompleteUploadResponse;
 
   if (!completeUploadResponse.ok) {

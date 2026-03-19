@@ -61,7 +61,9 @@ export function formatSoraCamDeviceListMessage(
       `*${device.name || device.deviceId}*`,
       `  ID: ${device.deviceId}`,
       `  ${
-        t("soracom.messages.soracam_device_status", { status: device.status })
+        t("soracom.messages.soracam_device_status", {
+          status: device.status || "-",
+        })
       }`,
       `  ${
         t("soracom.messages.soracam_device_firmware", {

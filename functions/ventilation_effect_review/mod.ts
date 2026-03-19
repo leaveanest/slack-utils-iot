@@ -2,10 +2,8 @@ import { DefineFunction, Schema, SlackFunction } from "deno-slack-sdk/mod.ts";
 import { t } from "../../lib/i18n/mod.ts";
 import {
   compareAirQualitySummaries,
-  CONFIG_KEYS,
   createSoracomClientFromEnv,
   filterAirQualityEntriesByTimeRange,
-  getConfigValue,
   resolveAirQualityCriteria,
   summarizeAirQualityEntries,
 } from "../../lib/soracom/mod.ts";
@@ -325,13 +323,6 @@ export default SlackFunction(
         }),
       );
 
-      const channelId = await getConfigValue(
-        client,
-        CONFIG_KEYS.REPORT_CHANNEL_ID,
-        inputs.channel_id,
-        env,
-      );
-
       const beforeStartTime = referenceTime - beforeMinutes * 60 * 1000;
       const afterEndTime = referenceTime + afterMinutes * 60 * 1000;
       const soracomClient = createSoracomClientFromEnv(env);
@@ -372,7 +363,7 @@ export default SlackFunction(
       );
 
       await client.chat.postMessage({
-        channel: channelId,
+        channel: inputs.channel_id,
         text: message,
       });
 

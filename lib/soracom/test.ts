@@ -1,4 +1,5 @@
 import { assertEquals } from "std/testing/asserts.ts";
+import { stub } from "std/testing/mock.ts";
 import {
   createSoracomClientFromEnv,
   formatBytes,
@@ -121,4 +122,627 @@ Deno.test("normalizeSoracomSim: ネストされた SIM レスポンスを正規�
     subscription: "plan-D",
     moduleType: "nano",
   });
+});
+
+Deno.test("listSims: 次ページキーをレスポンスヘッダーから取得できる", async () => {
+  const client = new SoracomClient({
+    authKeyId: "key-id",
+    authKey: "secret",
+    coverageType: "jp",
+  });
+
+  const fetchStub = stub(
+    globalThis,
+    "fetch",
+    (input: string | URL | Request) => {
+      const url = typeof input === "string"
+        ? input
+        : input instanceof URL
+        ? input.toString()
+        : input.url;
+
+      if (url.endsWith("/auth")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              apiKey: "api-key",
+              token: "api-token",
+            }),
+            {
+              status: 200,
+              headers: {
+                "Content-Type": "application/json",
+              },
+            },
+          ),
+        );
+      }
+
+      const requestUrl = new URL(url);
+      assertEquals(requestUrl.pathname, "/v1/sims");
+      assertEquals(requestUrl.searchParams.get("limit"), "50");
+      assertEquals(requestUrl.searchParams.get("last_evaluated_key"), null);
+
+      return Promise.resolve(
+        new Response(
+          JSON.stringify([
+            {
+              simId: "sim-1",
+              imsi: "440101234567890",
+              status: "active",
+              groupId: "group-1",
+              tags: { name: "Device-01" },
+            },
+          ]),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+              "x-soracom-next-key": "next-1",
+            },
+          },
+        ),
+      );
+    },
+  );
+
+  try {
+    const result = await client.listSims(50);
+
+    assertEquals(result.total, 1);
+    assertEquals(result.nextKey, "next-1");
+    assertEquals(result.sims[0].groupId, "group-1");
+  } finally {
+    fetchStub.restore();
+  }
+});
+
+Deno.test("listAllSims: 次ページキーをたどって全 SIM を取得できる", async () => {
+  const client = new SoracomClient({
+    authKeyId: "key-id",
+    authKey: "secret",
+    coverageType: "jp",
+  });
+
+  const fetchStub = stub(
+    globalThis,
+    "fetch",
+    (input: string | URL | Request) => {
+      const url = typeof input === "string"
+        ? input
+        : input instanceof URL
+        ? input.toString()
+        : input.url;
+
+      if (url.endsWith("/auth")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              apiKey: "api-key",
+              token: "api-token",
+            }),
+            {
+              status: 200,
+              headers: {
+                "Content-Type": "application/json",
+              },
+            },
+          ),
+        );
+      }
+
+      const requestUrl = new URL(url);
+      assertEquals(requestUrl.pathname, "/v1/sims");
+      assertEquals(requestUrl.searchParams.get("limit"), "2");
+
+      if (requestUrl.searchParams.get("last_evaluated_key") === null) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify([
+              {
+                simId: "sim-1",
+                imsi: "440101234567890",
+                status: "active",
+                groupId: "group-1",
+              },
+              {
+                simId: "sim-2",
+                imsi: "440101234567891",
+                status: "inactive",
+                groupId: "group-1",
+              },
+            ]),
+            {
+              status: 200,
+              headers: {
+                "Content-Type": "application/json",
+                "x-soracom-next-key": "next-1",
+              },
+            },
+          ),
+        );
+      }
+
+      assertEquals(requestUrl.searchParams.get("last_evaluated_key"), "next-1");
+
+      return Promise.resolve(
+        new Response(
+          JSON.stringify([
+            {
+              simId: "sim-3",
+              imsi: "440101234567892",
+              status: "active",
+              groupId: "group-2",
+            },
+          ]),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          },
+        ),
+      );
+    },
+  );
+
+  try {
+    const sims = await client.listAllSims(2);
+
+    assertEquals(sims.map((sim) => sim.simId), ["sim-1", "sim-2", "sim-3"]);
+  } finally {
+    fetchStub.restore();
+  }
+});
+
+Deno.test("listSoraCamDevices: connected フラグを状態表示用の文字列へ正規化できる", async () => {
+  const client = new SoracomClient({
+    authKeyId: "key-id",
+    authKey: "secret",
+    coverageType: "jp",
+  });
+
+  const fetchStub = stub(
+    globalThis,
+    "fetch",
+    (input: string | URL | Request) => {
+      const url = typeof input === "string"
+        ? input
+        : input instanceof URL
+        ? input.toString()
+        : input.url;
+
+      if (url.endsWith("/auth")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              apiKey: "api-key",
+              token: "api-token",
+            }),
+            {
+              status: 200,
+              headers: {
+                "Content-Type": "application/json",
+              },
+            },
+          ),
+        );
+      }
+
+      const requestUrl = new URL(url);
+      assertEquals(requestUrl.pathname, "/v1/sora_cam/devices");
+
+      return Promise.resolve(
+        new Response(
+          JSON.stringify([
+            {
+              connected: true,
+              deviceId: "7CDDE907B5FF",
+              firmwareVersion: "4.58.0.171",
+              lastConnectedTime: 1773779980925,
+              name: "テスト用カメラ",
+            },
+            {
+              connected: false,
+              deviceId: "7C12345678AB",
+              firmwareVersion: "4.37.1.106",
+              lastConnectedTime: "1773600000000",
+              name: "予備カメラ",
+            },
+          ]),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          },
+        ),
+      );
+    },
+  );
+
+  try {
+    const devices = await client.listSoraCamDevices();
+
+    assertEquals(devices, [
+      {
+        deviceId: "7CDDE907B5FF",
+        name: "テスト用カメラ",
+        status: "online",
+        firmwareVersion: "4.58.0.171",
+        lastConnectedTime: 1773779980925,
+      },
+      {
+        deviceId: "7C12345678AB",
+        name: "予備カメラ",
+        status: "offline",
+        firmwareVersion: "4.37.1.106",
+        lastConnectedTime: 1773600000000,
+      },
+    ]);
+  } finally {
+    fetchStub.restore();
+  }
+});
+
+Deno.test("getHarvestData: JSON文字列のcontentをパースして取得できる", async () => {
+  const client = new SoracomClient({
+    authKeyId: "key-id",
+    authKey: "secret",
+    coverageType: "jp",
+  });
+
+  const fetchStub = stub(
+    globalThis,
+    "fetch",
+    (input: string | URL | Request) => {
+      const url = typeof input === "string"
+        ? input
+        : input instanceof URL
+        ? input.toString()
+        : input.url;
+
+      if (url.endsWith("/auth")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              apiKey: "api-key",
+              token: "api-token",
+            }),
+            {
+              status: 200,
+              headers: {
+                "Content-Type": "application/json",
+              },
+            },
+          ),
+        );
+      }
+
+      const requestUrl = new URL(url);
+      assertEquals(
+        requestUrl.pathname,
+        "/v1/data/Subscriber/440101234567890",
+      );
+      assertEquals(requestUrl.searchParams.get("from"), "1700000000000");
+      assertEquals(requestUrl.searchParams.get("to"), "1700003600000");
+      assertEquals(requestUrl.searchParams.get("sort"), "desc");
+      assertEquals(requestUrl.searchParams.get("limit"), "1000");
+
+      return Promise.resolve(
+        new Response(
+          JSON.stringify([
+            {
+              time: 1700003500000,
+              contentType: "application/json",
+              content: '{"co2":547,"temp":23.4,"humid":45}',
+            },
+          ]),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          },
+        ),
+      );
+    },
+  );
+
+  try {
+    const result = await client.getHarvestData(
+      "440101234567890",
+      1700000000000,
+      1700003600000,
+    );
+
+    assertEquals(result.entries, [
+      {
+        time: 1700003500000,
+        contentType: "application/json",
+        content: {
+          co2: 547,
+          temp: 23.4,
+          humid: 45,
+        },
+      },
+    ]);
+  } finally {
+    fetchStub.restore();
+  }
+});
+
+Deno.test("getHarvestData: 指定期間のデータを複数回取得して連結できる", async () => {
+  const client = new SoracomClient({
+    authKeyId: "key-id",
+    authKey: "secret",
+    coverageType: "jp",
+  });
+
+  let harvestCallCount = 0;
+  const fetchStub = stub(
+    globalThis,
+    "fetch",
+    (input: string | URL | Request) => {
+      const url = typeof input === "string"
+        ? input
+        : input instanceof URL
+        ? input.toString()
+        : input.url;
+
+      if (url.endsWith("/auth")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              apiKey: "api-key",
+              token: "api-token",
+            }),
+            {
+              status: 200,
+              headers: {
+                "Content-Type": "application/json",
+              },
+            },
+          ),
+        );
+      }
+
+      const requestUrl = new URL(url);
+      assertEquals(
+        requestUrl.pathname,
+        "/v1/data/Subscriber/440101234567890",
+      );
+      assertEquals(requestUrl.searchParams.get("from"), "1000");
+      assertEquals(requestUrl.searchParams.get("sort"), "desc");
+      assertEquals(requestUrl.searchParams.get("limit"), "2");
+
+      harvestCallCount += 1;
+
+      if (harvestCallCount === 1) {
+        assertEquals(requestUrl.searchParams.get("to"), "4000");
+        return Promise.resolve(
+          new Response(
+            JSON.stringify([
+              {
+                time: 4000,
+                contentType: "application/json",
+                content: '{"co2":900}',
+              },
+              {
+                time: 3000,
+                contentType: "application/json",
+                content: '{"co2":800}',
+              },
+            ]),
+            {
+              status: 200,
+              headers: {
+                "Content-Type": "application/json",
+              },
+            },
+          ),
+        );
+      }
+
+      assertEquals(harvestCallCount, 2);
+      assertEquals(requestUrl.searchParams.get("to"), "2999");
+
+      return Promise.resolve(
+        new Response(
+          JSON.stringify([
+            {
+              time: 2000,
+              contentType: "application/json",
+              content: '{"co2":700}',
+            },
+          ]),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          },
+        ),
+      );
+    },
+  );
+
+  try {
+    const result = await client.getHarvestData(
+      "440101234567890",
+      1000,
+      4000,
+      "desc",
+      2,
+    );
+
+    assertEquals(result.entries.map((entry) => entry.time), [4000, 3000, 2000]);
+    assertEquals(harvestCallCount, 2);
+  } finally {
+    fetchStub.restore();
+  }
+});
+
+Deno.test("getSoraCamEvents: recordings_and_events の events を共通形式に正規化できる", async () => {
+  const client = new SoracomClient({
+    authKeyId: "key-id",
+    authKey: "secret",
+    coverageType: "jp",
+  });
+
+  const fetchStub = stub(
+    globalThis,
+    "fetch",
+    (input: string | URL | Request) => {
+      const url = typeof input === "string"
+        ? input
+        : input instanceof URL
+        ? input.toString()
+        : input.url;
+
+      if (url.endsWith("/auth")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              apiKey: "api-key",
+              token: "api-token",
+            }),
+            {
+              status: 200,
+              headers: {
+                "Content-Type": "application/json",
+              },
+            },
+          ),
+        );
+      }
+
+      const requestUrl = new URL(url);
+      assertEquals(
+        requestUrl.pathname,
+        "/v1/sora_cam/devices/device-1/recordings_and_events",
+      );
+      assertEquals(requestUrl.searchParams.get("from"), "1700000000000");
+      assertEquals(requestUrl.searchParams.get("to"), "1700003600000");
+      assertEquals(requestUrl.searchParams.get("sort"), "desc");
+
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            records: [],
+            events: [
+              {
+                type: "motion",
+                startTime: 1700003500000,
+                endTime: 1700003510000,
+              },
+              {
+                type: "sound",
+                startTime: 1700002500000,
+              },
+              {
+                startTime: 1700001500000,
+              },
+            ],
+          }),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          },
+        ),
+      );
+    },
+  );
+
+  try {
+    const events = await client.getSoraCamEvents(
+      "device-1",
+      1700000000000,
+      1700003600000,
+    );
+
+    assertEquals(events, [
+      {
+        deviceId: "device-1",
+        eventType: "motion",
+        eventTime: 1700003500000,
+        eventInfo: {
+          endTime: 1700003510000,
+        },
+      },
+      {
+        deviceId: "device-1",
+        eventType: "sound",
+        eventTime: 1700002500000,
+        eventInfo: {},
+      },
+    ]);
+  } finally {
+    fetchStub.restore();
+  }
+});
+
+Deno.test("listSoraCamRecordingsAndEvents: null 応答を空配列として扱える", async () => {
+  const client = new SoracomClient({
+    authKeyId: "key-id",
+    authKey: "secret",
+    coverageType: "jp",
+  });
+
+  const fetchStub = stub(
+    globalThis,
+    "fetch",
+    (input: string | URL | Request) => {
+      const url = typeof input === "string"
+        ? input
+        : input instanceof URL
+        ? input.toString()
+        : input.url;
+
+      if (url.endsWith("/auth")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              apiKey: "api-key",
+              token: "api-token",
+            }),
+            {
+              status: 200,
+              headers: {
+                "Content-Type": "application/json",
+              },
+            },
+          ),
+        );
+      }
+
+      const requestUrl = new URL(url);
+      assertEquals(
+        requestUrl.pathname,
+        "/v1/sora_cam/devices/device-1/recordings_and_events",
+      );
+
+      return Promise.resolve(
+        new Response("null", {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }),
+      );
+    },
+  );
+
+  try {
+    const result = await client.listSoraCamRecordingsAndEvents("device-1");
+
+    assertEquals(result, {
+      records: [],
+      events: [],
+    });
+  } finally {
+    fetchStub.restore();
+  }
 });

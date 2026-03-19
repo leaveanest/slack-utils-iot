@@ -1,8 +1,24 @@
 import { assertEquals } from "std/testing/asserts.ts";
+import { stub } from "std/testing/mock.ts";
 import { initI18n, setLocale } from "../../lib/i18n/mod.ts";
 import {
+  buildAllSoraCamImageExportJobKey,
+  buildAllSoraCamImageExportTaskKey,
+  getAllSoraCamImageExportJob,
+  getAllSoraCamImageExportTask,
+  listAllSoraCamImageExportTasks,
+} from "../../lib/soracom/mod.ts";
+import type {
+  SoraCamDevice,
+  SoraCamImageExport,
+} from "../../lib/soracom/mod.ts";
+import {
+  ALL_SORACAM_EXPORT_PARALLELISM,
+  formatAllSoraCamImageExportMessage,
+  formatPendingAllSoraCamImageExportMessage,
   formatSoraCamBatchImageExportMessage,
   pickSoraCamSnapshotTime,
+  processAllSoraCamImageExport,
   type SoraCamBatchImageExportResult,
   summarizeSoraCamBatchImageExportResults,
 } from "./mod.ts";
@@ -10,6 +26,201 @@ import {
 async function prepareLocale(locale: "en" | "ja" = "ja"): Promise<void> {
   await initI18n();
   setLocale(locale);
+}
+
+function createExportAllClient() {
+  const posts: Array<{ channel: string; text: string }> = [];
+  const updates: Array<{ channel: string; ts: string; text: string }> = [];
+  const apiCalls: Array<{ method: string; body?: Record<string, unknown> }> =
+    [];
+  const triggerCreates: Array<Record<string, unknown>> = [];
+  const datastores: Record<string, Record<string, Record<string, unknown>>> =
+    {};
+  let fileIdSeq = 0;
+  let triggerIdSeq = 0;
+
+  const ensureDatastore = (name: string) => {
+    datastores[name] ??= {};
+    return datastores[name];
+  };
+
+  const client = {
+    apiCall(method: string, body?: Record<string, unknown>) {
+      apiCalls.push({ method, body });
+
+      if (method === "files.getUploadURLExternal") {
+        fileIdSeq += 1;
+        return Promise.resolve({
+          ok: true,
+          upload_url: "https://upload.local/files",
+          file_id: `F${fileIdSeq}`,
+        });
+      }
+
+      if (method === "files.completeUploadExternal") {
+        const files = body?.files as Array<{ id: string }>;
+        return Promise.resolve({
+          ok: true,
+          files: [{ id: files[0].id }],
+        });
+      }
+
+      throw new Error(`unexpected apiCall: ${method}`);
+    },
+    workflows: {
+      triggers: {
+        create(body: Record<string, unknown>) {
+          triggerCreates.push(body);
+          triggerIdSeq += 1;
+          return Promise.resolve({
+            ok: true,
+            trigger: { id: `Ft${triggerIdSeq}` },
+          });
+        },
+      },
+    },
+    apps: {
+      datastore: {
+        get(params: { datastore: string; id: string }) {
+          return Promise.resolve({
+            ok: true,
+            item: ensureDatastore(params.datastore)[params.id],
+          });
+        },
+        put(params: { datastore: string; item: Record<string, unknown> }) {
+          const datastore = ensureDatastore(params.datastore);
+          const id = (params.item.task_key ?? params.item.job_key) as string;
+          datastore[id] = params.item;
+          return Promise.resolve({ ok: true });
+        },
+        query(params: { datastore: string }) {
+          return Promise.resolve({
+            ok: true,
+            items: Object.values(ensureDatastore(params.datastore)),
+          });
+        },
+        delete(params: { datastore: string; id: string }) {
+          delete ensureDatastore(params.datastore)[params.id];
+          return Promise.resolve({ ok: true });
+        },
+      },
+    },
+    chat: {
+      postMessage(params: { channel: string; text: string }) {
+        posts.push(params);
+        return Promise.resolve({
+          ok: true,
+          ts: "1742281200.000100",
+        });
+      },
+      update(params: { channel: string; ts: string; text: string }) {
+        updates.push(params);
+        return Promise.resolve({ ok: true });
+      },
+    },
+  };
+
+  return {
+    client,
+    posts,
+    updates,
+    apiCalls,
+    triggerCreates,
+    datastores,
+  };
+}
+
+type ExportBehavior = SoraCamImageExport | Error;
+
+function buildExportResult(
+  deviceId: string,
+  status: string,
+  exportId: string,
+  url = "",
+): SoraCamImageExport {
+  return {
+    exportId,
+    deviceId,
+    status,
+    url,
+    requestedTime: 1700000000000,
+    completedTime: 1700000001000,
+  };
+}
+
+function createDevices(count: number): SoraCamDevice[] {
+  return Array.from({ length: count }, (_, index) => ({
+    deviceId: `cam-${index + 1}`,
+    name: `Camera ${index + 1}`,
+    status: "online",
+    firmwareVersion: "1.0.0",
+    lastConnectedTime: 1700000000000,
+  }));
+}
+
+function createSoracomClientMock(params: {
+  devices: SoraCamDevice[];
+  initialExports?: Record<string, ExportBehavior>;
+  resumedExports?: Record<string, ExportBehavior>;
+  recordingEndTime?: number;
+}) {
+  const listDeviceCalls: string[] = [];
+  const listRecordingCalls: string[] = [];
+  const exportCalls: string[] = [];
+  const getExportCalls: Array<{ deviceId: string; exportId: string }> = [];
+  const recordingEndTime = params.recordingEndTime ?? 1700000300000;
+
+  const soracomClient = {
+    listSoraCamDevices() {
+      listDeviceCalls.push("list");
+      return Promise.resolve(params.devices);
+    },
+    listSoraCamRecordingsAndEvents(deviceId: string) {
+      listRecordingCalls.push(deviceId);
+      return Promise.resolve({
+        records: [
+          {
+            startTime: recordingEndTime - 60_000,
+            endTime: recordingEndTime,
+          },
+        ],
+        events: [],
+      });
+    },
+    exportSoraCamImage(deviceId: string, _time: number) {
+      exportCalls.push(deviceId);
+      const behavior = params.initialExports?.[deviceId];
+      if (!behavior) {
+        throw new Error(`missing initial export for ${deviceId}`);
+      }
+      if (behavior instanceof Error) {
+        throw behavior;
+      }
+      return Promise.resolve(behavior);
+    },
+    getSoraCamImageExport(deviceId: string, exportId: string) {
+      getExportCalls.push({ deviceId, exportId });
+      const behavior = params.resumedExports?.[deviceId];
+      if (!behavior) {
+        throw new Error(`missing resumed export for ${deviceId}`);
+      }
+      if (behavior instanceof Error) {
+        throw behavior;
+      }
+      return Promise.resolve({
+        ...behavior,
+        exportId: behavior.exportId || exportId,
+      });
+    },
+  };
+
+  return {
+    soracomClient,
+    listDeviceCalls,
+    listRecordingCalls,
+    exportCalls,
+    getExportCalls,
+  };
 }
 
 Deno.test("全台画像エクスポートの集計件数を状態ごとに算出できる", async () => {
@@ -82,34 +293,6 @@ Deno.test("全台画像エクスポートの結果メッセージに集計とア
     message.includes("結果: Slack にスナップショットをアップロードしました"),
     true,
   );
-  assertEquals(
-    message.includes(
-      "結果: 画像エクスポート処理中です（エクスポートID: exp-2）",
-    ),
-    true,
-  );
-  assertEquals(message.includes("uploaded"), false);
-});
-
-Deno.test("全台画像エクスポートの失敗結果にエラーメッセージが含まれる", async () => {
-  await prepareLocale("ja");
-
-  const results: SoraCamBatchImageExportResult[] = [
-    {
-      deviceId: "cam-3",
-      deviceName: "Warehouse",
-      exportId: "",
-      status: "failed",
-      imageUrl: "",
-      errorMessage: "timeout",
-    },
-  ];
-
-  const message = formatSoraCamBatchImageExportMessage(results);
-
-  assertEquals(message.includes("Warehouse"), true);
-  assertEquals(message.includes("結果: 画像エクスポートに失敗しました"), true);
-  assertEquals(message.includes("詳細: timeout"), true);
 });
 
 Deno.test("対象デバイスがない場合はデバイス未検出メッセージを返す", async () => {
@@ -134,26 +317,268 @@ Deno.test("最新の録画区間から安全なスナップショット時刻を
     },
   ]);
 
-  assertEquals(snapshotTime, 1700000640000);
+  assertEquals(snapshotTime, 1700000690000);
 });
 
-Deno.test("進行中の録画区間があれば現在時刻に近いスナップショット時刻を選べる", async () => {
+Deno.test("進捗メッセージに残台数と自動継続案内が含まれる", async () => {
   await prepareLocale("ja");
 
-  const now = 1700001000000;
-  const snapshotTime = pickSoraCamSnapshotTime(
-    [
-      {
-        startTime: 1700000000000,
-        endTime: 1700000300000,
-      },
-      {
-        startTime: 1700000400000,
-      },
-    ],
-    60_000,
-    now,
+  const message = formatAllSoraCamImageExportMessage(8, 3, 2, 1, 4);
+
+  assertEquals(message.includes("8台"), true);
+  assertEquals(message.includes("アップロード済み 3台"), true);
+  assertEquals(message.includes("処理中 2台"), true);
+  assertEquals(message.includes("残り 4台"), true);
+  assertEquals(message.includes("自動で続行"), true);
+});
+
+Deno.test("開始メッセージに今回バッチ台数が含まれる", async () => {
+  await prepareLocale("ja");
+
+  const message = formatPendingAllSoraCamImageExportMessage(8, 5);
+
+  assertEquals(message.includes("8台"), true);
+  assertEquals(message.includes("最大5台"), true);
+});
+
+Deno.test("親 run は全カメラ一覧取得後に最初の5台を並列起動する", async () => {
+  await prepareLocale("ja");
+
+  const devices = createDevices(6);
+  const { client, posts, updates, triggerCreates } = createExportAllClient();
+  const { soracomClient, listDeviceCalls } = createSoracomClientMock({
+    devices,
+  });
+
+  const result = await processAllSoraCamImageExport({
+    soracomClient,
+    client: client as never,
+    channelId: "C123",
+    now: 1700000400000,
+  });
+
+  assertEquals(listDeviceCalls.length, 1);
+  assertEquals(posts.length, 1);
+  assertEquals(updates.length, 1);
+  assertEquals(triggerCreates.length, ALL_SORACAM_EXPORT_PARALLELISM);
+  assertEquals(result.deviceCount, 6);
+  assertEquals(result.completedCount, 0);
+  assertEquals(result.processingCount, 5);
+  assertEquals(result.failedCount, 0);
+
+  const job = await getAllSoraCamImageExportJob(client as never, "C123");
+  const tasks = await listAllSoraCamImageExportTasks(
+    client as never,
+    buildAllSoraCamImageExportJobKey("C123"),
   );
 
-  assertEquals(snapshotTime, 1700000940000);
+  assertEquals(job?.status, "pending");
+  assertEquals(job?.totalDeviceCount, 6);
+  assertEquals(tasks.length, 6);
+  assertEquals(
+    tasks.filter((task) => task.status === "processing").length,
+    ALL_SORACAM_EXPORT_PARALLELISM,
+  );
+  assertEquals(tasks.at(-1)?.status, "queued");
+});
+
+Deno.test("子 run が即完了した台をアップロードしたら次の待機台を補充する", async () => {
+  await prepareLocale("ja");
+
+  const fetchStub = stub(
+    globalThis,
+    "fetch",
+    (input: string | URL | Request) => {
+      const url = typeof input === "string"
+        ? input
+        : input instanceof URL
+        ? input.toString()
+        : input.url;
+
+      if (url === "https://upload.local/files") {
+        return Promise.resolve(new Response(null, { status: 200 }));
+      }
+
+      if (url.startsWith("https://image.local/")) {
+        return Promise.resolve(
+          new Response(new Uint8Array([1, 2, 3]), { status: 200 }),
+        );
+      }
+
+      throw new Error(`unexpected fetch: ${url}`);
+    },
+  );
+
+  try {
+    const devices = createDevices(6);
+    const { client, triggerCreates } = createExportAllClient();
+    const { soracomClient, exportCalls } = createSoracomClientMock({
+      devices,
+      initialExports: {
+        "cam-1": buildExportResult(
+          "cam-1",
+          "completed",
+          "exp-cam-1",
+          "https://image.local/cam-1.jpg",
+        ),
+      },
+    });
+
+    await processAllSoraCamImageExport({
+      soracomClient,
+      client: client as never,
+      channelId: "C123",
+      now: 1700000400000,
+    });
+
+    const result = await processAllSoraCamImageExport({
+      soracomClient,
+      client: client as never,
+      channelId: "C123",
+      jobKey: "C123",
+      taskKey: buildAllSoraCamImageExportTaskKey("C123", "cam-1"),
+      now: 1700000405000,
+    });
+
+    assertEquals(exportCalls, ["cam-1"]);
+    assertEquals(triggerCreates.length, ALL_SORACAM_EXPORT_PARALLELISM + 1);
+    assertEquals(result.completedCount, 1);
+    assertEquals(result.processingCount, 5);
+    assertEquals(result.failedCount, 0);
+
+    const cam1 = await getAllSoraCamImageExportTask(
+      client as never,
+      "C123:cam-1",
+    );
+    const cam6 = await getAllSoraCamImageExportTask(
+      client as never,
+      "C123:cam-6",
+    );
+
+    assertEquals(cam1?.status, "uploaded");
+    assertEquals(cam6?.status, "processing");
+  } finally {
+    fetchStub.restore();
+  }
+});
+
+Deno.test("子 run がまだ processing の台は自分自身だけ再スケジュールする", async () => {
+  await prepareLocale("ja");
+
+  const devices = createDevices(6);
+  const { client, triggerCreates } = createExportAllClient();
+  const { soracomClient, exportCalls } = createSoracomClientMock({
+    devices,
+    initialExports: {
+      "cam-1": buildExportResult("cam-1", "processing", "exp-cam-1"),
+    },
+  });
+
+  await processAllSoraCamImageExport({
+    soracomClient,
+    client: client as never,
+    channelId: "C123",
+    now: 1700000400000,
+  });
+
+  const result = await processAllSoraCamImageExport({
+    soracomClient,
+    client: client as never,
+    channelId: "C123",
+    jobKey: "C123",
+    taskKey: buildAllSoraCamImageExportTaskKey("C123", "cam-1"),
+    now: 1700000405000,
+  });
+
+  assertEquals(exportCalls, ["cam-1"]);
+  assertEquals(triggerCreates.length, ALL_SORACAM_EXPORT_PARALLELISM + 1);
+  assertEquals(result.completedCount, 0);
+  assertEquals(result.processingCount, 5);
+  assertEquals(result.failedCount, 0);
+
+  const cam1 = await getAllSoraCamImageExportTask(
+    client as never,
+    "C123:cam-1",
+  );
+  const cam6 = await getAllSoraCamImageExportTask(
+    client as never,
+    "C123:cam-6",
+  );
+
+  assertEquals(cam1?.status, "processing");
+  assertEquals(cam1?.exportId, "exp-cam-1");
+  assertEquals(cam6?.status, "queued");
+});
+
+Deno.test("子 run が失敗した台は failed にして次の待機台を補充する", async () => {
+  await prepareLocale("ja");
+
+  const devices = createDevices(6);
+  const { client, triggerCreates } = createExportAllClient();
+  const { soracomClient, exportCalls } = createSoracomClientMock({
+    devices,
+    initialExports: {
+      "cam-1": buildExportResult("cam-1", "failed", "exp-cam-1"),
+    },
+  });
+
+  await processAllSoraCamImageExport({
+    soracomClient,
+    client: client as never,
+    channelId: "C123",
+    now: 1700000400000,
+  });
+
+  const result = await processAllSoraCamImageExport({
+    soracomClient,
+    client: client as never,
+    channelId: "C123",
+    jobKey: "C123",
+    taskKey: buildAllSoraCamImageExportTaskKey("C123", "cam-1"),
+    now: 1700000405000,
+  });
+
+  assertEquals(exportCalls, ["cam-1"]);
+  assertEquals(triggerCreates.length, ALL_SORACAM_EXPORT_PARALLELISM + 1);
+  assertEquals(result.completedCount, 0);
+  assertEquals(result.processingCount, 5);
+  assertEquals(result.failedCount, 1);
+
+  const cam1 = await getAllSoraCamImageExportTask(
+    client as never,
+    "C123:cam-1",
+  );
+  const cam6 = await getAllSoraCamImageExportTask(
+    client as never,
+    "C123:cam-6",
+  );
+
+  assertEquals(cam1?.status, "failed");
+  assertEquals(cam6?.status, "processing");
+});
+
+Deno.test("対象デバイスが0台のときはジョブを作らずメッセージだけ投稿する", async () => {
+  await prepareLocale("ja");
+
+  const { client, posts, updates, triggerCreates } = createExportAllClient();
+  const { soracomClient } = createSoracomClientMock({
+    devices: [],
+  });
+
+  const result = await processAllSoraCamImageExport({
+    soracomClient,
+    client: client as never,
+    channelId: "C123",
+    now: 1700000400000,
+  });
+
+  assertEquals(posts.length, 1);
+  assertEquals(updates.length, 0);
+  assertEquals(triggerCreates.length, 0);
+  assertEquals(result.deviceCount, 0);
+  assertEquals(result.message, "ソラカメデバイスが見つかりません");
+  assertEquals(
+    await getAllSoraCamImageExportJob(client as never, "C123"),
+    null,
+  );
 });
