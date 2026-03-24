@@ -155,6 +155,10 @@ Deno.test({
     assertEquals(message.includes("- CO2 (ppm)\n  - 最新: 950"), true);
     assertEquals(message.includes("  - 平均: 910.4"), true);
     assertEquals(message.includes("- 温度 (℃)\n  - 最新: 24.2"), true);
+    assertEquals(
+      message.includes("  - 最大: 1250\n\n- 温度 (℃)\n  - 最新: 24.2"),
+      true,
+    );
     assertEquals(message.includes("  - 最大: 25.4"), true);
     assertEquals(message.includes("2026-03-16 10:00:00 JST"), true);
     assertEquals(

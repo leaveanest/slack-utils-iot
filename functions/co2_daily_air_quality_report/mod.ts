@@ -208,7 +208,7 @@ export function formatCo2DailyAirQualityReportMessage(
     ].join("\n"),
     [
       `*${t("soracom.messages.air_quality_report_section_metrics")}*`,
-      ...toBulletLines([
+      toBulletLines([
         formatMetricSummaryBlock(
           t("soracom.messages.air_quality_metric_co2"),
           summary.co2,
@@ -221,7 +221,7 @@ export function formatCo2DailyAirQualityReportMessage(
           t("soracom.messages.air_quality_metric_humidity"),
           summary.humidity,
         ),
-      ]),
+      ]).join("\n\n"),
     ].join("\n"),
   ].filter((section): section is string =>
     section !== null && section.length > 0
