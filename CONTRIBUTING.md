@@ -1,4 +1,4 @@
-# Contributing to slack-utils-template
+# Contributing to slack-utils-soracom
 
 ## 開発フロー
 
