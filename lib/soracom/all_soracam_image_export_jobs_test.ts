@@ -50,14 +50,14 @@ function createErrorClient() {
   };
 }
 
-Deno.test("全台画像エクスポートジョブキーを生成できる", () => {
+Deno.test("全台画像スナップショットジョブキーを生成できる", () => {
   assertEquals(
     buildAllSoraCamImageExportJobKey("C123"),
     "C123",
   );
 });
 
-Deno.test("全台画像エクスポートジョブを保存して再取得できる", async () => {
+Deno.test("全台画像スナップショットジョブを保存して再取得できる", async () => {
   const store: Record<string, Record<string, unknown>> = {};
   const client = createMockClient(store);
 
@@ -86,7 +86,7 @@ Deno.test("全台画像エクスポートジョブを保存して再取得でき
   });
 });
 
-Deno.test("不正な全台画像エクスポートジョブレコードは無視される", async () => {
+Deno.test("不正な全台画像スナップショットジョブレコードは無視される", async () => {
   const client = createMockClient({
     C123: {
       job_key: "C123",
@@ -104,7 +104,7 @@ Deno.test("不正な全台画像エクスポートジョブレコードは無視
   assertEquals(job, null);
 });
 
-Deno.test("全台画像エクスポートジョブの保存失敗時はエラーを返す", async () => {
+Deno.test("全台画像スナップショットジョブの保存失敗時はエラーを返す", async () => {
   const client = createErrorClient();
 
   let message = "";

@@ -15,6 +15,7 @@ import {
   summarizeAirQualityEntries,
 } from "../../lib/soracom/mod.ts";
 import {
+  airQualityReportPeriodSchema,
   channelIdSchema,
   imsiSchema,
   nonEmptyStringSchema,
@@ -32,6 +33,13 @@ type AirQualityCriteriaView = {
 };
 
 const DEFAULT_BUCKET_MINUTES = 60;
+const AIR_QUALITY_REPORT_PERIOD_OPTIONS = ["1h", "1d", "1m"] as const;
+type AirQualityReportPeriod = typeof AIR_QUALITY_REPORT_PERIOD_OPTIONS[number];
+const AIR_QUALITY_REPORT_PERIOD_CHOICES = [
+  { value: "1h", title: "1時間", description: "直近1時間を集計" },
+  { value: "1d", title: "1日", description: "直近1日を集計" },
+  { value: "1m", title: "1ヶ月", description: "直近30日を集計" },
+] as const;
 
 interface Co2DailyAirQualityReportChatClient {
   chat: {
@@ -58,49 +66,69 @@ interface Co2DailyAirQualityReportChatClient {
 }
 
 /**
- * 日次空気品質レポート関数定義
+ * 空気品質レポート関数定義
  *
  * 指定した SIM グループ配下の active SIM を走査し、
  * CO2 / 温度 / 湿度の要約と CO2 ピーク時間帯を Slack に投稿します。
  */
 export const Co2DailyAirQualityReportFunctionDefinition = DefineFunction({
   callback_id: "co2_daily_air_quality_report",
-  title: "日次空気品質レポート",
+  title: "空気品質レポート",
   description:
-    "指定した SIM グループの日次空気品質サマリーとCO2ピーク時間帯を生成します",
+    "指定した SIM グループの空気品質サマリーとCO2ピーク時間帯を生成します",
   source_file: "functions/co2_daily_air_quality_report/mod.ts",
   input_parameters: {
     properties: {
       sim_group_id: {
         type: Schema.types.string,
+        title: "SIMグループID",
         description: "対象の SIM グループ ID",
       },
       channel_id: {
         type: Schema.slack.types.channel_id,
+        title: "投稿先チャンネル",
         description: "レポート投稿先チャンネル",
+      },
+      period: {
+        type: Schema.types.string,
+        title: "集計期間",
+        description: "集計期間を選択してください（既定値: 1時間）",
+        enum: AIR_QUALITY_REPORT_PERIOD_OPTIONS,
+        choices: AIR_QUALITY_REPORT_PERIOD_CHOICES,
+        default: "1h",
       },
       co2_threshold: {
         type: Schema.types.number,
-        description: "CO2 しきい値（ppm）",
+        title: "CO2しきい値",
+        description: "CO2 しきい値（ppm、既定値: 1000）",
+        default: 1000,
       },
       temperature_min: {
         type: Schema.types.number,
-        description: "温度下限しきい値（C）",
+        title: "温度下限",
+        description: "温度下限しきい値（℃、既定値: 18）",
+        default: 18,
       },
       temperature_max: {
         type: Schema.types.number,
-        description: "温度上限しきい値（C）",
+        title: "温度上限",
+        description: "温度上限しきい値（℃、既定値: 28）",
+        default: 28,
       },
       humidity_min: {
         type: Schema.types.number,
-        description: "湿度下限しきい値（%）",
+        title: "湿度下限",
+        description: "湿度下限しきい値（%、既定値: 40）",
+        default: 40,
       },
       humidity_max: {
         type: Schema.types.number,
-        description: "湿度上限しきい値（%）",
+        title: "湿度上限",
+        description: "湿度上限しきい値（%、既定値: 70）",
+        default: 70,
       },
     },
-    required: ["sim_group_id", "channel_id"],
+    required: ["sim_group_id", "channel_id", "period"],
   },
   output_parameters: {
     properties: {
@@ -126,10 +154,11 @@ export const Co2DailyAirQualityReportFunctionDefinition = DefineFunction({
 });
 
 /**
- * 日次空気品質レポートの Slack メッセージを生成します。
+ * 空気品質レポートの Slack メッセージを生成します。
  *
  * @param sensorName - センサー表示名
  * @param imsi - IMSI
+ * @param period - 集計期間
  * @param summary - 集計済み空気品質サマリー
  * @param peakBucket - CO2 ピーク時間帯
  * @returns フォーマット済みメッセージ
@@ -137,24 +166,33 @@ export const Co2DailyAirQualityReportFunctionDefinition = DefineFunction({
 export function formatCo2DailyAirQualityReportMessage(
   sensorName: string,
   imsi: string,
+  period: AirQualityReportPeriod,
   summary: AirQualitySummary,
   peakBucket: AirQualityBucketSummary | null,
 ): string {
+  const periodLabel = formatAirQualityReportPeriodLabel(period);
   const criteria = getAirQualityCriteriaView(summary);
+  const actionPrompt = formatAirQualityActionPrompt(criteria);
   const header = `${
     t("soracom.messages.co2_daily_air_quality_report_header", {
       sensorName,
       imsi,
+      period: periodLabel,
     })
   }`;
 
   if (summary.sampleCount === 0) {
-    return [header, t("soracom.messages.co2_daily_air_quality_report_no_data")]
-      .join("\n\n");
+    return [
+      header,
+      t("soracom.messages.co2_daily_air_quality_report_no_data", {
+        period: periodLabel,
+      }),
+    ].join("\n\n");
   }
 
   const sections = [
     header,
+    actionPrompt,
     [
       `*${t("soracom.messages.air_quality_report_section_summary")}*`,
       ...toBulletLines([
@@ -185,7 +223,9 @@ export function formatCo2DailyAirQualityReportMessage(
         ),
       ]),
     ].join("\n"),
-  ].filter((section) => section.length > 0);
+  ].filter((section): section is string =>
+    section !== null && section.length > 0
+  );
 
   return sections.join("\n\n");
 }
@@ -281,6 +321,16 @@ function formatCriteriaViolationLines(
   ];
 }
 
+function formatAirQualityActionPrompt(
+  criteria: AirQualityCriteriaView,
+): string | null {
+  if (!hasAirQualityCriteriaViolation(criteria)) {
+    return null;
+  }
+
+  return t("soracom.messages.air_quality_action_required");
+}
+
 function formatPeakBucketLines(
   peakBucket: AirQualityBucketSummary | null,
 ): string[] {
@@ -320,6 +370,14 @@ function getAirQualityCriteriaView(
   };
 }
 
+function hasAirQualityCriteriaViolation(
+  criteria: AirQualityCriteriaView,
+): boolean {
+  return criteria.co2ViolationCount > 0 ||
+    criteria.temperatureViolationCount > 0 ||
+    criteria.humidityViolationCount > 0;
+}
+
 type Co2DailyAirQualityReportCriteriaInputs = {
   co2_threshold?: number;
   temperature_min?: number;
@@ -333,10 +391,11 @@ type Co2DailyAirQualityReportInputs =
   & {
     sim_group_id: string;
     channel_id: string;
+    period: string;
   };
 
 /**
- * ワークフロー入力から日次空気品質レポート用の基準値を解決します。
+ * ワークフロー入力から空気品質レポート用の基準値を解決します。
  *
  * @param inputs - レポート入力のしきい値
  * @returns 解決済みの空気品質基準
@@ -396,8 +455,35 @@ export function resolveCo2DailyAirQualitySensorName(sim: SoracomSim): string {
   return sim.simId;
 }
 
+function formatAirQualityReportPeriodLabel(
+  period: AirQualityReportPeriod,
+): string {
+  switch (period) {
+    case "1h":
+      return t("soracom.messages.air_quality_report_period_1h");
+    case "1d":
+      return t("soracom.messages.air_quality_report_period_1d");
+    case "1m":
+      return t("soracom.messages.air_quality_report_period_1m");
+  }
+}
+
+function resolveAirQualityReportLookbackMs(
+  period: AirQualityReportPeriod,
+): number {
+  switch (period) {
+    case "1h":
+      return 60 * 60 * 1000;
+    case "1d":
+      return 24 * 60 * 60 * 1000;
+    case "1m":
+      return 30 * 24 * 60 * 60 * 1000;
+  }
+}
+
 export function formatCo2DailyAirQualityReportSummaryMessage(
   simGroupId: string,
+  period: AirQualityReportPeriod,
   processedCount: number,
   reportedCount: number,
   failedCount: number,
@@ -406,6 +492,7 @@ export function formatCo2DailyAirQualityReportSummaryMessage(
     `${
       t("soracom.messages.co2_daily_air_quality_report_summary_header", {
         groupId: simGroupId,
+        period: formatAirQualityReportPeriodLabel(period),
       })
     }`,
     formatExecutionSummary(processedCount, reportedCount, failedCount),
@@ -495,11 +582,15 @@ export default SlackFunction(
       const {
         sim_group_id: simGroupIdRaw,
         channel_id: channelIdRaw,
+        period: periodRaw,
       } = inputs as Co2DailyAirQualityReportInputs;
       const simGroupId = nonEmptyStringSchema.parse(
         typeof simGroupIdRaw === "string" ? simGroupIdRaw.trim() : "",
       );
       const channelId = channelIdSchema.parse(channelIdRaw);
+      const period = airQualityReportPeriodSchema.parse(
+        periodRaw,
+      ) as AirQualityReportPeriod;
       const criteria = resolveCo2DailyAirQualityReportCriteria(inputs);
 
       console.log(
@@ -509,7 +600,7 @@ export default SlackFunction(
       );
 
       const now = Date.now();
-      const oneDayAgo = now - 24 * 60 * 60 * 1000;
+      const lookbackStart = now - resolveAirQualityReportLookbackMs(period);
       const soracomClient = createSoracomClientFromEnv(env);
       const allSims = await soracomClient.listAllSims();
       const simsInGroup = allSims.filter((sim) => sim.groupId === simGroupId);
@@ -545,12 +636,13 @@ export default SlackFunction(
           console.log(
             t("soracom.logs.generating_co2_daily_air_quality_report", {
               imsi,
+              period: formatAirQualityReportPeriodLabel(period),
             }),
           );
 
           const result = await soracomClient.getHarvestData(
             imsi,
-            oneDayAgo,
+            lookbackStart,
             now,
           );
 
@@ -565,6 +657,7 @@ export default SlackFunction(
           const message = formatCo2DailyAirQualityReportMessage(
             resolveCo2DailyAirQualitySensorName(sim),
             maskImsiForDisplay(imsi),
+            period,
             summary,
             peakBucket,
           );
@@ -593,6 +686,7 @@ export default SlackFunction(
       const initialSummaryMessage =
         formatCo2DailyAirQualityReportSummaryMessage(
           simGroupId,
+          period,
           targetSims.length,
           0,
           failedCount,
@@ -630,6 +724,7 @@ export default SlackFunction(
 
       const message = formatCo2DailyAirQualityReportSummaryMessage(
         simGroupId,
+        period,
         targetSims.length,
         reportedCount,
         failedCount,

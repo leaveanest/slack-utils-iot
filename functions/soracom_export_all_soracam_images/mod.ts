@@ -48,17 +48,17 @@ const ALL_SORACAM_EXPORT_WORKFLOW_PATH =
 const ALL_SORACAM_EXPORT_PENDING_MESSAGE_TS = "__pending__";
 
 /**
- * 全ソラカメ画像エクスポート結果
+ * 全ソラカメ画像スナップショット結果
  */
 export type SoraCamBatchImageExportResult = SoraCamImageExportReportResult;
 
 /**
- * 全ソラカメ画像エクスポート関数定義
+ * 全ソラカメ画像スナップショット関数定義
  */
 export const SoracomExportAllSoraCamImagesFunctionDefinition = DefineFunction({
   callback_id: "soracom_export_all_soracam_images",
   title: "ソラカメ全台画像スナップショット",
-  description: "すべての SoraCam デバイスから画像を切り出して共有します",
+  description: "すべての ソラカメ デバイスから画像スナップショットを取得して共有します",
   source_file: "functions/soracom_export_all_soracam_images/mod.ts",
   input_parameters: {
     properties: {
@@ -85,19 +85,19 @@ export const SoracomExportAllSoraCamImagesFunctionDefinition = DefineFunction({
       },
       completed_count: {
         type: Schema.types.number,
-        description: "完了したエクスポート数",
+        description: "完了したスナップショット数",
       },
       processing_count: {
         type: Schema.types.number,
-        description: "処理中のエクスポート数",
+        description: "処理中のスナップショット数",
       },
       failed_count: {
         type: Schema.types.number,
-        description: "失敗したエクスポート数",
+        description: "失敗したスナップショット数",
       },
       message: {
         type: Schema.types.string,
-        description: "整形済みのエクスポート結果メッセージ",
+        description: "整形済みのスナップショット結果メッセージ",
       },
     },
     required: [
@@ -212,7 +212,7 @@ export function summarizeSoraCamBatchImageExportResults(
 }
 
 /**
- * 全ソラカメ画像エクスポート結果をフォーマットされたメッセージに変換します。
+ * 全ソラカメ画像スナップショット結果をフォーマットされたメッセージに変換します。
  *
  * @param results - 全デバイスのエクスポート結果
  * @returns フォーマットされたSlackメッセージ文字列
@@ -1007,7 +1007,7 @@ async function processAllSoraCamImageExportWorker(params: {
 }
 
 /**
- * 全台画像エクスポートの親 orchestration を実行します。
+ * 全台画像スナップショットの親 orchestration を実行します。
  *
  * @param params - 実行パラメータ
  * @returns 現在の進捗

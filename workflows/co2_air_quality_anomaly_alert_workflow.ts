@@ -1,5 +1,5 @@
 import { DefineWorkflow, Schema } from "deno-slack-sdk/mod.ts";
-import { Co2DailyAirQualityReportFunctionDefinition } from "../functions/co2_daily_air_quality_report/mod.ts";
+import { Co2AirQualityAnomalyAlertFunctionDefinition } from "../functions/co2_air_quality_anomaly_alert/mod.ts";
 
 const AIR_QUALITY_REPORT_PERIOD_OPTIONS = ["1h", "1d", "1m"] as const;
 const AIR_QUALITY_REPORT_PERIOD_CHOICES = [
@@ -9,16 +9,15 @@ const AIR_QUALITY_REPORT_PERIOD_CHOICES = [
 ] as const;
 
 /**
- * 空気品質レポートワークフロー
+ * 空気品質異常検知ワークフロー
  *
  * 指定した SIM グループをもとに、
- * Slack に指定期間のレポートと CO2 ピーク時間帯を投稿します。
+ * Slack に指定期間の空気品質異常検知結果を投稿します。
  */
-const Co2DailyAirQualityReportWorkflow = DefineWorkflow({
-  callback_id: "co2_daily_air_quality_report_workflow",
-  title: "空気品質レポート",
-  description:
-    "指定した SIM グループの空気品質サマリーとCO2ピーク時間帯を生成します",
+const Co2AirQualityAnomalyAlertWorkflow = DefineWorkflow({
+  callback_id: "co2_air_quality_anomaly_alert_workflow",
+  title: "空気品質異常検知",
+  description: "指定した SIM グループの空気品質異常を検知して通知します",
   input_parameters: {
     properties: {
       sim_group_id: {
@@ -29,7 +28,7 @@ const Co2DailyAirQualityReportWorkflow = DefineWorkflow({
       channel_id: {
         type: Schema.slack.types.channel_id,
         title: "投稿先チャンネル",
-        description: "レポート投稿先チャンネル",
+        description: "通知投稿先チャンネル",
       },
       period: {
         type: Schema.types.string,
@@ -74,18 +73,18 @@ const Co2DailyAirQualityReportWorkflow = DefineWorkflow({
   },
 });
 
-Co2DailyAirQualityReportWorkflow.addStep(
-  Co2DailyAirQualityReportFunctionDefinition,
+Co2AirQualityAnomalyAlertWorkflow.addStep(
+  Co2AirQualityAnomalyAlertFunctionDefinition,
   {
-    sim_group_id: Co2DailyAirQualityReportWorkflow.inputs.sim_group_id,
-    channel_id: Co2DailyAirQualityReportWorkflow.inputs.channel_id,
-    period: Co2DailyAirQualityReportWorkflow.inputs.period,
-    co2_threshold: Co2DailyAirQualityReportWorkflow.inputs.co2_threshold,
-    temperature_min: Co2DailyAirQualityReportWorkflow.inputs.temperature_min,
-    temperature_max: Co2DailyAirQualityReportWorkflow.inputs.temperature_max,
-    humidity_min: Co2DailyAirQualityReportWorkflow.inputs.humidity_min,
-    humidity_max: Co2DailyAirQualityReportWorkflow.inputs.humidity_max,
+    sim_group_id: Co2AirQualityAnomalyAlertWorkflow.inputs.sim_group_id,
+    channel_id: Co2AirQualityAnomalyAlertWorkflow.inputs.channel_id,
+    period: Co2AirQualityAnomalyAlertWorkflow.inputs.period,
+    co2_threshold: Co2AirQualityAnomalyAlertWorkflow.inputs.co2_threshold,
+    temperature_min: Co2AirQualityAnomalyAlertWorkflow.inputs.temperature_min,
+    temperature_max: Co2AirQualityAnomalyAlertWorkflow.inputs.temperature_max,
+    humidity_min: Co2AirQualityAnomalyAlertWorkflow.inputs.humidity_min,
+    humidity_max: Co2AirQualityAnomalyAlertWorkflow.inputs.humidity_max,
   },
 );
 
-export default Co2DailyAirQualityReportWorkflow;
+export default Co2AirQualityAnomalyAlertWorkflow;

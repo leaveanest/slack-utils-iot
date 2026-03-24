@@ -149,7 +149,7 @@ export interface SoracomMotionCaptureJob {
 }
 
 /**
- * SoraCam 全台画像エクスポートジョブ
+ * SoraCam 全台画像スナップショットジョブ
  */
 export interface SoracomAllSoraCamImageExportJob {
   /** ジョブ識別子（channel_id） */
@@ -171,7 +171,7 @@ export interface SoracomAllSoraCamImageExportJob {
 }
 
 /**
- * SoraCam 全台画像エクスポートの各デバイス処理状態
+ * SoraCam 全台画像スナップショットの各デバイス処理状態
  */
 export interface SoracomAllSoraCamImageExportTask {
   /** タスク識別子 */
@@ -264,7 +264,7 @@ export interface SoraCamRecordingsAndEvents {
 }
 
 /**
- * ソラカメ画像エクスポートリクエスト
+ * ソラカメ画像スナップショットリクエスト
  */
 export interface SoraCamImageExportRequest {
   /** エクスポート対象の日時（UNIXタイムスタンプミリ秒） */
@@ -272,7 +272,7 @@ export interface SoraCamImageExportRequest {
 }
 
 /**
- * ソラカメ画像エクスポート結果
+ * ソラカメ画像スナップショット結果
  */
 export interface SoraCamImageExport {
   /** エクスポートID */

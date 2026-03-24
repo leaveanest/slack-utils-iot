@@ -113,7 +113,7 @@ function assertSoraCamImageExportSucceeded(
 }
 
 /**
- * 画像エクスポートが完了するまで待機します。
+ * 画像スナップショットが完了するまで待機します。
  *
  * @param soracomClient - SORACOM クライアント
  * @param deviceId - 対象デバイス ID

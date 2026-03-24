@@ -8,8 +8,8 @@ import type { SoraCamDevice } from "../../lib/soracom/mod.ts";
  */
 export const SoracomListSoraCamDevicesFunctionDefinition = DefineFunction({
   callback_id: "soracom_list_soracam_devices",
-  title: "SoraCamデバイス一覧",
-  description: "SoraCam デバイス一覧を取得して表示します",
+  title: "ソラカメデバイス一覧",
+  description: "ソラカメ デバイス一覧を取得して表示します",
   source_file: "functions/soracom_list_soracam_devices/mod.ts",
   input_parameters: {
     properties: {

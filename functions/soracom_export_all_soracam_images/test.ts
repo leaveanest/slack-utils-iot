@@ -224,7 +224,7 @@ function createSoracomClientMock(params: {
   };
 }
 
-Deno.test("全台画像エクスポートの集計件数を状態ごとに算出できる", async () => {
+Deno.test("全台画像スナップショットの集計件数を状態ごとに算出できる", async () => {
   await prepareLocale("ja");
 
   const results: SoraCamBatchImageExportResult[] = [
@@ -261,7 +261,7 @@ Deno.test("全台画像エクスポートの集計件数を状態ごとに算出
   assertEquals(summary.failed, 1);
 });
 
-Deno.test("全台画像エクスポートの結果メッセージに集計とアップロード結果が含まれる", async () => {
+Deno.test("全台画像スナップショットの結果メッセージに集計とアップロード結果が含まれる", async () => {
   await prepareLocale("ja");
 
   const results: SoraCamBatchImageExportResult[] = [

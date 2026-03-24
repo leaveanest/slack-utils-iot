@@ -9,14 +9,14 @@ import { soraCamDeviceIdSchema } from "../../lib/validation/schemas.ts";
  */
 export const SoracomGetSoraCamEventsFunctionDefinition = DefineFunction({
   callback_id: "soracom_get_soracam_events",
-  title: "SoraCamイベント",
-  description: "SoraCam デバイスのイベントを取得して表示します",
+  title: "ソラカメイベント",
+  description: "ソラカメ デバイスのイベントを取得して表示します",
   source_file: "functions/soracom_get_soracam_events/mod.ts",
   input_parameters: {
     properties: {
       device_id: {
         type: Schema.types.string,
-        description: "SoraCam デバイス ID",
+        description: "ソラカメ デバイス ID",
       },
       channel_id: {
         type: Schema.slack.types.channel_id,

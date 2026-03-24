@@ -7,6 +7,7 @@ import { SoracomSimAnomalyAlertFunctionDefinition } from "./functions/soracom_si
 import { SoracomSoraCamMotionCaptureFunctionDefinition } from "./functions/soracom_soracam_motion_capture/mod.ts";
 import { SoracomSimUsageReportFunctionDefinition } from "./functions/soracom_sim_usage_report/mod.ts";
 import { Co2DailyAirQualityReportFunctionDefinition } from "./functions/co2_daily_air_quality_report/mod.ts";
+import { Co2AirQualityAnomalyAlertFunctionDefinition } from "./functions/co2_air_quality_anomaly_alert/mod.ts";
 import SoracomGetHarvestDataWorkflow from "./workflows/soracom_get_harvest_data_workflow.ts";
 import SoracomListSoraCamDevicesWorkflow from "./workflows/soracom_list_soracam_devices_workflow.ts";
 import SoracomExportSoraCamImageWorkflow from "./workflows/soracom_export_soracam_image_workflow.ts";
@@ -15,6 +16,7 @@ import SoracomSimAnomalyAlertWorkflow from "./workflows/soracom_sim_anomaly_aler
 import SoracomSoraCamMotionCaptureWorkflow from "./workflows/soracom_soracam_motion_capture_workflow.ts";
 import SoracomSimUsageReportWorkflow from "./workflows/soracom_sim_usage_report_workflow.ts";
 import Co2DailyAirQualityReportWorkflow from "./workflows/co2_daily_air_quality_report_workflow.ts";
+import Co2AirQualityAnomalyAlertWorkflow from "./workflows/co2_air_quality_anomaly_alert_workflow.ts";
 import SoracomAllSoraCamImageExportJobsDatastore from "./datastores/soracom_all_soracam_image_export_jobs.ts";
 import SoracomAllSoraCamImageExportTasksDatastore from "./datastores/soracom_all_soracam_image_export_tasks.ts";
 import SoracomMotionCaptureJobsDatastore from "./datastores/soracom_motion_capture_jobs.ts";
@@ -40,6 +42,7 @@ export default Manifest({
     SoracomSoraCamMotionCaptureWorkflow,
     SoracomSimUsageReportWorkflow,
     Co2DailyAirQualityReportWorkflow,
+    Co2AirQualityAnomalyAlertWorkflow,
   ],
   datastores: [
     SoracomAllSoraCamImageExportJobsDatastore,
@@ -58,6 +61,7 @@ export default Manifest({
     SoracomSoraCamMotionCaptureFunctionDefinition,
     SoracomSimUsageReportFunctionDefinition,
     Co2DailyAirQualityReportFunctionDefinition,
+    Co2AirQualityAnomalyAlertFunctionDefinition,
   ],
   outgoingDomains: [
     "api.soracom.io",

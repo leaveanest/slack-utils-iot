@@ -37,14 +37,14 @@ function createMockClient(store: Record<string, Record<string, unknown>> = {}) {
   };
 }
 
-Deno.test("全台画像エクスポートタスクキーを生成できる", () => {
+Deno.test("全台画像スナップショットタスクキーを生成できる", () => {
   assertEquals(
     buildAllSoraCamImageExportTaskKey("C123", "cam-1"),
     "C123:cam-1",
   );
 });
 
-Deno.test("全台画像エクスポートタスクを保存して一覧取得できる", async () => {
+Deno.test("全台画像スナップショットタスクを保存して一覧取得できる", async () => {
   const store: Record<string, Record<string, unknown>> = {};
   const client = createMockClient(store);
 

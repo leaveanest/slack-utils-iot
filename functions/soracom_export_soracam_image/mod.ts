@@ -16,18 +16,18 @@ import {
 import { soraCamDeviceIdSchema } from "../../lib/validation/schemas.ts";
 
 /**
- * ソラカメ画像エクスポート関数定義
+ * ソラカメ画像スナップショット関数定義
  */
 export const SoracomExportSoraCamImageFunctionDefinition = DefineFunction({
   callback_id: "soracom_export_soracam_image",
-  title: "SoraCam画像エクスポート",
-  description: "SoraCam 録画から画像を切り出して結果を共有します",
+  title: "ソラカメ画像スナップショット",
+  description: "ソラカメ 録画から画像スナップショットを取得して結果を共有します",
   source_file: "functions/soracom_export_soracam_image/mod.ts",
   input_parameters: {
     properties: {
       device_id: {
         type: Schema.types.string,
-        description: "SoraCam デバイス ID",
+        description: "ソラカメ デバイス ID",
       },
       channel_id: {
         type: Schema.slack.types.channel_id,
@@ -48,7 +48,7 @@ export const SoracomExportSoraCamImageFunctionDefinition = DefineFunction({
       },
       status: {
         type: Schema.types.string,
-        description: "エクスポート状態",
+        description: "スナップショット状態",
       },
       image_url: {
         type: Schema.types.string,
@@ -56,7 +56,7 @@ export const SoracomExportSoraCamImageFunctionDefinition = DefineFunction({
       },
       message: {
         type: Schema.types.string,
-        description: "整形済みのエクスポート結果メッセージ",
+        description: "整形済みのスナップショット結果メッセージ",
       },
     },
     required: ["device_id", "export_id", "status", "message"],
@@ -88,9 +88,9 @@ function buildSingleDeviceResult(
 }
 
 /**
- * ソラカメ画像エクスポート結果をフォーマットされたメッセージに変換します。
+ * ソラカメ画像スナップショット結果をフォーマットされたメッセージに変換します。
  *
- * @param result - 単体デバイスのエクスポート結果
+ * @param result - 単体デバイスのスナップショット結果
  * @returns フォーマットされたSlackメッセージ文字列
  */
 export function formatSoraCamImageExportMessage(

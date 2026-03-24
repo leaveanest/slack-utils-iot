@@ -883,7 +883,7 @@ export class SoracomClient {
   }
 
   /**
-   * ソラカメ画像エクスポートの結果を取得します
+   * ソラカメ画像スナップショットの結果を取得します
    *
    * @param deviceId - デバイスID
    * @param exportId - エクスポートID

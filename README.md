@@ -4,7 +4,7 @@ SORACOM を利用した現場運用を Slack 上で支援する custom step / Fu
 
 ## 概要
 
-- SIM 状態監視、通信量レポート、Harvest Data 活用、SoraCam 連携を Slack
+- SIM 状態監視、通信量レポート、Harvest Data 活用、ソラカメ 連携を Slack
   に統合します。
 - 単純な API
   実行だけでなく、定時確認、状況共有、現場確認、定期レポートといった運用ユースケースを中心に設計します。
@@ -152,11 +152,13 @@ Functions は custom step として再利用する中心的な提供物です。
 | Function                                                                                             | 役割                                 |
 | ---------------------------------------------------------------------------------------------------- | ------------------------------------ |
 | [`functions/soracom_get_harvest_data/mod.ts`](functions/soracom_get_harvest_data/mod.ts)             | Harvest Data 取得と表示              |
-| [`functions/soracom_list_soracam_devices/mod.ts`](functions/soracom_list_soracam_devices/mod.ts)     | SoraCam デバイス一覧取得             |
-| [`functions/soracom_export_soracam_image/mod.ts`](functions/soracom_export_soracam_image/mod.ts)     | SoraCam 画像エクスポート             |
+| [`functions/soracom_list_soracam_devices/mod.ts`](functions/soracom_list_soracam_devices/mod.ts)     | ソラカメ デバイス一覧取得             |
+| [`functions/soracom_export_soracam_image/mod.ts`](functions/soracom_export_soracam_image/mod.ts)     | ソラカメ 画像スナップショット         |
 | [`functions/soracom_sim_anomaly_alert/mod.ts`](functions/soracom_sim_anomaly_alert/mod.ts)           | 異常ステータスの判定と共有内容の生成 |
-| [`functions/soracom_soracam_motion_capture/mod.ts`](functions/soracom_soracam_motion_capture/mod.ts) | 直近イベントの抽出と画像エクスポート |
+| [`functions/soracom_soracam_motion_capture/mod.ts`](functions/soracom_soracam_motion_capture/mod.ts) | 直近イベントの抽出と画像スナップショット |
 | [`functions/soracom_sim_usage_report/mod.ts`](functions/soracom_sim_usage_report/mod.ts)             | SIM 通信量集計とレポート生成         |
+| [`functions/co2_daily_air_quality_report/mod.ts`](functions/co2_daily_air_quality_report/mod.ts)     | 空気品質サマリーとピーク時間帯の生成 |
+| [`functions/co2_air_quality_anomaly_alert/mod.ts`](functions/co2_air_quality_anomaly_alert/mod.ts)   | 空気品質異常の判定と通知内容の生成   |
 
 ### Workflows
 
@@ -171,6 +173,7 @@ Builder や利用者独自の Workflow から Function を custom step
 | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
 | [`workflows/soracom_sim_anomaly_alert_workflow.ts`](workflows/soracom_sim_anomaly_alert_workflow.ts)           | 異常ステータスの SIM を定時確認して共有            |
 | [`workflows/soracom_soracam_motion_capture_workflow.ts`](workflows/soracom_soracam_motion_capture_workflow.ts) | 直近の動体検知イベントを定時確認し、画像付きで共有 |
+| [`workflows/co2_air_quality_anomaly_alert_workflow.ts`](workflows/co2_air_quality_anomaly_alert_workflow.ts)   | 空気品質のしきい値逸脱を定時確認して共有           |
 
 #### 定期レポート・可視化
 
@@ -178,13 +181,14 @@ Builder や利用者独自の Workflow から Function を custom step
 | ---------------------------------------------------------------------------------------------------------- | -------------------------- |
 | [`workflows/soracom_sim_usage_report_workflow.ts`](workflows/soracom_sim_usage_report_workflow.ts)         | SIM の通信量サマリーを生成 |
 | [`workflows/soracom_get_harvest_data_workflow.ts`](workflows/soracom_get_harvest_data_workflow.ts)         | Harvest Data を確認        |
-| [`workflows/soracom_list_soracam_devices_workflow.ts`](workflows/soracom_list_soracam_devices_workflow.ts) | SoraCam デバイス一覧を確認 |
+| [`workflows/soracom_list_soracam_devices_workflow.ts`](workflows/soracom_list_soracam_devices_workflow.ts) | ソラカメ デバイス一覧を確認 |
+| [`workflows/co2_daily_air_quality_report_workflow.ts`](workflows/co2_daily_air_quality_report_workflow.ts) | 空気品質レポートを生成     |
 
 #### 現場確認・オペレーション
 
 | Workflow                                                                                                   | 用途                                 |
 | ---------------------------------------------------------------------------------------------------------- | ------------------------------------ |
-| [`workflows/soracom_export_soracam_image_workflow.ts`](workflows/soracom_export_soracam_image_workflow.ts) | SoraCam 録画から画像を切り出して確認 |
+| [`workflows/soracom_export_soracam_image_workflow.ts`](workflows/soracom_export_soracam_image_workflow.ts) | ソラカメ 録画から画像スナップショットを取得して確認 |
 
 ### Triggers
 
@@ -208,7 +212,7 @@ Builder や利用者独自の Workflow から Function を custom step
 Workflow を優先します。SORACOM 本体が直接提供する Slack
 通知機能と競合する単純通知は避けます。`SORACOM Flux` は比較対象に含めません。
 
-### SoraCam を活用するユースケース
+### ソラカメ を活用するユースケース
 
 - `soracam_latest_event_snapshot_workflow`
   - 定時実行時点で直近イベントの画像を切り出して確認
@@ -228,7 +232,9 @@ Workflow を優先します。SORACOM 本体が直接提供する Slack
 による変更にも対応しています。
 
 - `co2_daily_air_quality_report_workflow`
-  - CO2 / 温度 / 湿度の推移を日次で要約し、CO2 ピーク時間帯も示す
+  - CO2 / 温度 / 湿度の推移を指定期間で要約し、CO2 ピーク時間帯も示す
+- `co2_air_quality_anomaly_alert_workflow`
+  - CO2 / 温度 / 湿度のしきい値逸脱を指定期間で検知して共有
 
 ## テスト
 

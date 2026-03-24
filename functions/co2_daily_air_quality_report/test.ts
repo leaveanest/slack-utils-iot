@@ -108,7 +108,7 @@ const baseSim: SoracomSim = {
 };
 
 Deno.test({
-  name: "日次空気品質レポートが正しくフォーマットされる",
+  name: "期間指定の空気品質レポートが正しくフォーマットされる",
   sanitizeResources: false,
   sanitizeOps: false,
   fn: async () => {
@@ -117,6 +117,7 @@ Deno.test({
     const message = formatCo2DailyAirQualityReportMessage(
       "会議室CO2センサー",
       "***********7890",
+      "1h",
       summaryWithData,
       peakBucket,
     );
@@ -128,11 +129,24 @@ Deno.test({
     assertEquals(message.includes("1250"), true);
     assertEquals(message.includes("23.5"), true);
     assertEquals(message.includes("1275"), true);
+    assertEquals(message.includes("1時間"), true);
+    assertEquals(
+      message.includes(t("soracom.messages.air_quality_action_required")),
+      true,
+    );
+    assertEquals(
+      message.indexOf(t("soracom.messages.air_quality_action_required")) <
+        message.indexOf(
+          `*${t("soracom.messages.air_quality_report_section_summary")}*`,
+        ),
+      true,
+    );
     assertEquals(
       message.split("\n")[0],
       t("soracom.messages.co2_daily_air_quality_report_header", {
         sensorName: "会議室CO2センサー",
         imsi: "***********7890",
+        period: "1時間",
       }),
     );
     assertEquals(message.split("\n")[0].startsWith("*"), false);
@@ -152,6 +166,33 @@ Deno.test({
 });
 
 Deno.test({
+  name: "違反がない場合は行動喚起文を含めない",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const message = formatCo2DailyAirQualityReportMessage(
+      "会議室CO2センサー",
+      "***********7890",
+      "1d",
+      {
+        ...summaryWithData,
+        co2ThresholdExceededCount: 0,
+        temperatureOutOfRangeCount: 0,
+        humidityOutOfRangeCount: 0,
+      },
+      peakBucket,
+    );
+
+    assertEquals(
+      message.includes(t("soracom.messages.air_quality_action_required")),
+      false,
+    );
+  },
+});
+
+Deno.test({
   name: "データがない場合は空データ用メッセージを返す",
   sanitizeResources: false,
   sanitizeOps: false,
@@ -161,6 +202,7 @@ Deno.test({
     const message = formatCo2DailyAirQualityReportMessage(
       "会議室CO2センサー",
       "***********7890",
+      "1d",
       {
         ...summaryWithData,
         sampleCount: 0,
@@ -175,6 +217,7 @@ Deno.test({
     );
 
     assertEquals(message.includes("***********7890"), true);
+    assertEquals(message.includes("1日"), true);
     assertEquals(message.length > 0, true);
   },
 });
@@ -194,6 +237,7 @@ Deno.test({
       const message = formatCo2DailyAirQualityReportMessage(
         "会議室CO2センサー",
         "***********7890",
+        "1m",
         {
           ...summaryWithData,
           humidity: {},
@@ -213,7 +257,7 @@ Deno.test({
 });
 
 Deno.test({
-  name: "ピーク時間帯が取れない場合も日次レポート本文は生成される",
+  name: "ピーク時間帯が取れない場合も期間付きレポート本文は生成される",
   sanitizeResources: false,
   sanitizeOps: false,
   fn: async () => {
@@ -222,6 +266,7 @@ Deno.test({
     const message = formatCo2DailyAirQualityReportMessage(
       "会議室CO2センサー",
       "***********7890",
+      "1h",
       summaryWithData,
       null,
     );
@@ -301,7 +346,7 @@ Deno.test({
 });
 
 Deno.test({
-  name: "日次空気品質レポートはSIMグループIDと投稿先チャンネルを入力に持つ",
+  name: "空気品質レポートは期間と投稿先を含む入力を持つ",
   sanitizeResources: false,
   sanitizeOps: false,
   fn: async () => {
@@ -310,13 +355,56 @@ Deno.test({
     const definition = Co2DailyAirQualityReportFunctionDefinition
       .definition as {
         input_parameters?: {
+          properties?: {
+            period?: {
+              title?: string;
+              enum?: string[];
+              default?: string;
+              description?: string;
+              choices?: Array<{
+                value?: string;
+                title?: string;
+              }>;
+            };
+            co2_threshold?: {
+              description?: string;
+              default?: number;
+            };
+          };
           required?: string[];
         };
       };
 
     assertEquals(
       definition.input_parameters?.required,
-      ["sim_group_id", "channel_id"],
+      ["sim_group_id", "channel_id", "period"],
+    );
+    assertEquals(
+      definition.input_parameters?.properties?.period?.enum,
+      ["1h", "1d", "1m"],
+    );
+    assertEquals(
+      definition.input_parameters?.properties?.period?.title,
+      "集計期間",
+    );
+    assertEquals(
+      definition.input_parameters?.properties?.period?.default,
+      "1h",
+    );
+    assertEquals(
+      definition.input_parameters?.properties?.period?.choices?.map((choice) =>
+        choice.title
+      ),
+      ["1時間", "1日", "1ヶ月"],
+    );
+    assertEquals(
+      definition.input_parameters?.properties?.co2_threshold?.default,
+      1000,
+    );
+    assertEquals(
+      definition.input_parameters?.properties?.co2_threshold?.description
+        ?.includes("既定値: 1000"),
+      true,
     );
   },
 });
@@ -330,12 +418,14 @@ Deno.test({
 
     const message = formatCo2DailyAirQualityReportSummaryMessage(
       "group-1",
+      "1d",
       3,
       2,
       1,
     );
 
     assertEquals(message.includes("group-1"), true);
+    assertEquals(message.includes("1日"), true);
     assertEquals(message.includes("3"), true);
     assertEquals(message.includes("2"), true);
     assertEquals(message.includes("1"), true);

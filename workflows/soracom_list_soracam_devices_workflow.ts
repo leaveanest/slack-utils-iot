@@ -8,8 +8,8 @@ import { SoracomListSoraCamDevicesFunctionDefinition } from "../functions/soraco
  */
 const SoracomListSoraCamDevicesWorkflow = DefineWorkflow({
   callback_id: "soracom_list_soracam_devices_workflow",
-  title: "SoraCamデバイス一覧",
-  description: "SoraCam デバイス一覧を取得して表示します",
+  title: "ソラカメデバイス一覧",
+  description: "ソラカメ デバイス一覧を取得して表示します",
   input_parameters: {
     properties: {
       channel_id: {

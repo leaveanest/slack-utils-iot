@@ -8,13 +8,13 @@ import { SoracomGetSoraCamEventsFunctionDefinition } from "../functions/soracom_
  */
 const SoracomGetSoraCamEventsWorkflow = DefineWorkflow({
   callback_id: "soracom_get_soracam_events_workflow",
-  title: "SoraCamイベント",
-  description: "SoraCam デバイスのイベントを取得して表示します",
+  title: "ソラカメイベント",
+  description: "ソラカメ デバイスのイベントを取得して表示します",
   input_parameters: {
     properties: {
       device_id: {
         type: Schema.types.string,
-        description: "SoraCam デバイス ID",
+        description: "ソラカメ デバイス ID",
       },
       channel_id: {
         type: Schema.slack.types.channel_id,

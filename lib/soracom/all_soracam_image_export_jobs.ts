@@ -37,7 +37,7 @@ export type SoracomAllSoraCamImageExportJobInput = {
 };
 
 /**
- * 全台画像エクスポートジョブキーを生成します。
+ * 全台画像スナップショットジョブキーを生成します。
  *
  * @param channelId - チャンネル ID
  * @returns ジョブキー
@@ -47,7 +47,7 @@ export function buildAllSoraCamImageExportJobKey(channelId: string): string {
 }
 
 /**
- * 全台画像エクスポートジョブを Datastore に保存します。
+ * 全台画像スナップショットジョブを Datastore に保存します。
  *
  * @param client - Slack API クライアント
  * @param job - 保存対象ジョブ
@@ -81,7 +81,7 @@ export async function upsertAllSoraCamImageExportJob(
 }
 
 /**
- * 全台画像エクスポートジョブを Datastore から削除します。
+ * 全台画像スナップショットジョブを Datastore から削除します。
  *
  * @param client - Slack API クライアント
  * @param channelId - チャンネル ID
@@ -106,7 +106,7 @@ export async function deleteAllSoraCamImageExportJob(
 }
 
 /**
- * 保存済みの全台画像エクスポートジョブを取得します。
+ * 保存済みの全台画像スナップショットジョブを取得します。
  *
  * @param client - Slack API クライアント
  * @param channelId - チャンネル ID

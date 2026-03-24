@@ -51,7 +51,7 @@ export type SoracomAllSoraCamImageExportTaskInput = {
 };
 
 /**
- * 全台画像エクスポートタスクキーを生成します。
+ * 全台画像スナップショットタスクキーを生成します。
  *
  * @param jobKey - ジョブキー
  * @param deviceId - デバイス ID
@@ -65,7 +65,7 @@ export function buildAllSoraCamImageExportTaskKey(
 }
 
 /**
- * 全台画像エクスポートタスクを Datastore に保存します。
+ * 全台画像スナップショットタスクを Datastore に保存します。
  *
  * @param client - Slack API クライアント
  * @param task - 保存対象タスク
@@ -107,7 +107,7 @@ export async function upsertAllSoraCamImageExportTask(
 }
 
 /**
- * 全台画像エクスポートタスクを 1 件取得します。
+ * 全台画像スナップショットタスクを 1 件取得します。
  *
  * @param client - Slack API クライアント
  * @param taskKey - タスクキー
@@ -130,7 +130,7 @@ export async function getAllSoraCamImageExportTask(
 }
 
 /**
- * ジョブ配下の全台画像エクスポートタスクを一覧取得します。
+ * ジョブ配下の全台画像スナップショットタスクを一覧取得します。
  *
  * @param client - Slack API クライアント
  * @param jobKey - ジョブキー
@@ -160,7 +160,7 @@ export async function listAllSoraCamImageExportTasks(
 }
 
 /**
- * ジョブ配下の全台画像エクスポートタスクを削除します。
+ * ジョブ配下の全台画像スナップショットタスクを削除します。
  *
  * @param client - Slack API クライアント
  * @param jobKey - ジョブキー

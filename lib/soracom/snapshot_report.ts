@@ -1,7 +1,7 @@
 import { formatLocalizedDateTime, t } from "../i18n/mod.ts";
 
 /**
- * ソラカメ画像エクスポートの表示用結果です。
+ * ソラカメ画像スナップショットの表示用結果です。
  */
 export interface SoraCamImageExportReportResult {
   /** デバイス ID */
@@ -124,7 +124,7 @@ function formatDeviceReport(
 }
 
 /**
- * 画像エクスポート結果件数を状態ごとに集計します。
+ * 画像スナップショット結果件数を状態ごとに集計します。
  *
  * @param results - 表示用の結果一覧
  * @returns 状態別件数
@@ -153,7 +153,7 @@ export function summarizeSoraCamImageExportResults(
 }
 
 /**
- * 画像エクスポート結果を Slack 投稿向けのレポートに整形します。
+ * 画像スナップショット結果を Slack 投稿向けのレポートに整形します。
  *
  * @param header - レポート見出し
  * @param results - 表示用の結果一覧

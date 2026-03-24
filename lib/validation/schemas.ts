@@ -257,6 +257,27 @@ export function createStatsPeriodSchema() {
 }
 
 /**
+ * i18n対応の空気品質レポート期間スキーマを生成
+ * 値: "1h" または "1d" または "1m"
+ *
+ * @returns Zodスキーマ
+ */
+export function createAirQualityReportPeriodSchema() {
+  return z.string().superRefine((val, ctx) => {
+    if (val !== "1h" && val !== "1d" && val !== "1m") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.invalid_enum_value,
+        options: ["1h", "1d", "1m"],
+        received: val,
+        message: t(
+          "soracom.errors.validation.air_quality_report_period_invalid",
+        ),
+      });
+    }
+  });
+}
+
+/**
  * i18n対応のソラカメデバイスIDスキーマを生成
  * 形式: 英数字とハイフン
  *
@@ -311,6 +332,12 @@ export const coverageTypeSchema = createCoverageTypeSchema();
 export const statsPeriodSchema = createStatsPeriodSchema();
 
 /**
+ * 空気品質レポート期間 スキーマ（デフォルトインスタンス）
+ */
+export const airQualityReportPeriodSchema =
+  createAirQualityReportPeriodSchema();
+
+/**
  * ソラカメデバイスID スキーマ（デフォルトインスタンス）
  */
 export const soraCamDeviceIdSchema = createSoraCamDeviceIdSchema();
@@ -327,6 +354,9 @@ export type SimId = z.infer<ReturnType<typeof createSimIdSchema>>;
 export type Imsi = z.infer<ReturnType<typeof createImsiSchema>>;
 export type CoverageType = z.infer<ReturnType<typeof createCoverageTypeSchema>>;
 export type StatsPeriod = z.infer<ReturnType<typeof createStatsPeriodSchema>>;
+export type AirQualityReportPeriod = z.infer<
+  ReturnType<typeof createAirQualityReportPeriodSchema>
+>;
 export type SoraCamDeviceId = z.infer<
   ReturnType<typeof createSoraCamDeviceIdSchema>
 >;
