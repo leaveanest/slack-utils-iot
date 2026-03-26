@@ -52,12 +52,6 @@ export type {
   GpsMultiunitSample,
 } from "./gps_multiunit.ts";
 export {
-  ALERT_CHANNEL_ID,
-  getChannelId,
-  REPORT_CHANNEL_ID,
-  SORACAM_CHANNEL_ID,
-} from "./config.ts";
-export {
   buildAllSoraCamImageExportJobKey,
   deleteAllSoraCamImageExportJob,
   getAllSoraCamImageExportJob,
