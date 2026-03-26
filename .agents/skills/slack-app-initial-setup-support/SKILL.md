@@ -30,9 +30,9 @@ into a workspace for the first time.
 - For steps that happen in Slack or SORACOM screens, tell the user what to
   verify and avoid assuming success without a confirmation or an observed local
   result.
-- Keep the conversation anchored to one phase at a time:
-  prerequisites, repository preparation, Slack deploy, Workflow Builder setup,
-  verification, or troubleshooting.
+- Keep the conversation anchored to one phase at a time: prerequisites,
+  repository preparation, Slack deploy, Workflow Builder setup, verification, or
+  troubleshooting.
 
 ## Workflow
 
@@ -49,9 +49,8 @@ into a workspace for the first time.
    - the human confirmation needed in Slack
 4. Before advancing, restate the completion criteria for that phase using
    `docs/setup-guide.md`.
-5. When something fails, troubleshoot against the guide's
-   `よくある詰まりどころ` section first, then inspect repository-specific
-   configuration if needed.
+5. When something fails, troubleshoot against the guide's `よくある詰まりどころ`
+   section first, then inspect repository-specific configuration if needed.
 
 ## Guardrails
 

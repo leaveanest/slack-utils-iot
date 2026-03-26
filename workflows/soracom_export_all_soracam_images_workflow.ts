@@ -9,7 +9,8 @@ import { SoracomExportAllSoraCamImagesFunctionDefinition } from "../functions/so
 const SoracomExportAllSoraCamImagesWorkflow = DefineWorkflow({
   callback_id: "soracom_export_all_soracam_images_workflow",
   title: "ソラカメ全台画像スナップショット",
-  description: "すべての ソラカメ デバイスから画像スナップショットを取得して共有します",
+  description:
+    "すべての ソラカメ デバイスから画像スナップショットを取得して共有します",
   input_parameters: {
     properties: {
       channel_id: {

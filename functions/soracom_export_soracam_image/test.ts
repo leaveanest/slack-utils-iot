@@ -52,6 +52,9 @@ Deno.test("単体画像スナップショットの失敗メッセージに詳細
   const message = formatSoraCamImageExportMessage(result);
 
   assertEquals(message.includes("失敗 1件"), true);
-  assertEquals(message.includes("結果: 画像スナップショットに失敗しました"), true);
+  assertEquals(
+    message.includes("結果: 画像スナップショットに失敗しました"),
+    true,
+  );
   assertEquals(message.includes("詳細: timeout"), true);
 });

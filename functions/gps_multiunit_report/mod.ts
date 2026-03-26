@@ -12,7 +12,6 @@ import {
   createSoracomClientFromEnv,
   extractGpsMultiunitSamples,
   findLatestGpsMultiunitSample,
-  hasGpsMultiunitLocation,
   isGpsMultiunitDeviceIssue,
 } from "../../lib/soracom/mod.ts";
 import {
