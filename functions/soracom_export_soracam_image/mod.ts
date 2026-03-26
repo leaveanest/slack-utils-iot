@@ -21,8 +21,7 @@ import { soraCamDeviceIdSchema } from "../../lib/validation/schemas.ts";
 export const SoracomExportSoraCamImageFunctionDefinition = DefineFunction({
   callback_id: "soracom_export_soracam_image",
   title: "カメラ画像スナップショット",
-  description:
-    "カメラ録画から画像スナップショットを取得して結果を共有します",
+  description: "カメラ録画から画像スナップショットを取得して結果を共有します",
   source_file: "functions/soracom_export_soracam_image/mod.ts",
   input_parameters: {
     properties: {

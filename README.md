@@ -1,6 +1,7 @@
 # slack-utils-iot
 
-IoT デバイス運用を Slack 上で支援する custom step / Function 集です。主に「SORACOM」サービスを利用する現場運用を想定しています。
+IoT デバイス運用を Slack 上で支援する custom step / Function
+集です。主に「SORACOM」サービスを利用する現場運用を想定しています。
 
 ## 商標について
 
@@ -196,9 +197,9 @@ Builder や利用者独自の Workflow から Function を custom step
 
 #### 現場確認・オペレーション
 
-| Workflow                                                                                                   | 用途                                                |
-| ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
-| [`workflows/soracom_export_soracam_image_workflow.ts`](workflows/soracom_export_soracam_image_workflow.ts) | カメラ録画から画像スナップショットを取得して確認   |
+| Workflow                                                                                                   | 用途                                             |
+| ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| [`workflows/soracom_export_soracam_image_workflow.ts`](workflows/soracom_export_soracam_image_workflow.ts) | カメラ録画から画像スナップショットを取得して確認 |
 
 ### Triggers
 
