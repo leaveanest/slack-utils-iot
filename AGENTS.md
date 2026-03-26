@@ -140,3 +140,6 @@ slack run workflows/soracom_sim_anomaly_alert_workflow
     `manifest.ts` を触る実装作業向け
 - `.agents/skills/soracom-quality-checks`
   - テスト、i18n、例外処理、`manifest.ts` 登録漏れ、CI 前の確認向け
+- `.agents/skills/slack-app-initial-setup-support`
+  - `docs/setup-guide.md` を一次ソースに、Slack への初回導入と人手確認を伴う
+    セットアップ支援向け
