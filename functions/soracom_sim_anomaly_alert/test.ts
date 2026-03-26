@@ -1,5 +1,9 @@
 import { assertEquals } from "std/testing/asserts.ts";
-import { filterAnomalousSims, formatAnomalyAlertMessage } from "./mod.ts";
+import {
+  detectSimAnomalies,
+  filterAnomalousSims,
+  formatAnomalyAlertMessage,
+} from "./mod.ts";
 import type { SoracomSim } from "../../lib/soracom/mod.ts";
 
 const baseSim: SoracomSim = {
@@ -106,5 +110,29 @@ Deno.test({
 
     assertEquals(message.includes("{imsi}"), false);
     assertEquals(message.includes("IMSI: -"), true);
+  },
+});
+
+Deno.test({
+  name: "異常検知は全ページ取得後のSIMを対象にする",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const result = await detectSimAnomalies({
+      listAllSims: () =>
+        Promise.resolve([
+          { ...baseSim, simId: "sim-1", status: "active" },
+          { ...baseSim, simId: "sim-2", status: "suspended" },
+          { ...baseSim, simId: "sim-3", status: "terminated" },
+        ]),
+    });
+
+    assertEquals(result.totalCount, 3);
+    assertEquals(
+      result.anomalousSims.map((sim) => sim.simId),
+      ["sim-2", "sim-3"],
+    );
   },
 });

@@ -81,3 +81,31 @@ Deno.test({
     assertEquals(result.message.includes("0 B"), true);
   },
 });
+
+Deno.test({
+  name: "UNIX秒の日時でも日付を正しくフォーマットする",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const dataPoints: AirStatsDataPoint[] = [
+      {
+        date: Math.floor(Date.parse("2026-03-16T00:00:00.000Z") / 1000),
+        uploadByteSizeTotal: 128,
+        downloadByteSizeTotal: 256,
+        uploadPacketSizeTotal: 1,
+        downloadPacketSizeTotal: 2,
+      },
+    ];
+
+    const result = formatAirUsageMessage(
+      "440101234567890",
+      "day",
+      dataPoints,
+    );
+
+    assertEquals(result.message.includes("2026-03-16"), true);
+    assertEquals(result.message.includes("1970"), false);
+  },
+});

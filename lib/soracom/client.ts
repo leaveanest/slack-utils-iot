@@ -103,6 +103,16 @@ interface AirTrafficStatsTotals {
   downloadPacketSizeTotal: number;
 }
 
+function normalizeUnixTimestampMilliseconds(
+  timestamp: number | undefined,
+): number {
+  if (typeof timestamp !== "number" || !Number.isFinite(timestamp)) {
+    return 0;
+  }
+
+  return timestamp < 1_000_000_000_000 ? timestamp * 1000 : timestamp;
+}
+
 interface RawSoraCamRecordingEvent {
   type?: string;
   startTime?: number;
@@ -242,13 +252,15 @@ export function normalizeAirStatsDataPoints(
       );
 
       return {
-        date: rawPoint.unixtime ?? 0,
+        date: normalizeUnixTimestampMilliseconds(rawPoint.unixtime),
         ...totals,
       };
     }
 
     return {
-      date: typeof rawPoint.date === "number" ? rawPoint.date : 0,
+      date: normalizeUnixTimestampMilliseconds(
+        typeof rawPoint.date === "number" ? rawPoint.date : undefined,
+      ),
       uploadByteSizeTotal: rawPoint.uploadByteSizeTotal ?? 0,
       downloadByteSizeTotal: rawPoint.downloadByteSizeTotal ?? 0,
       uploadPacketSizeTotal: rawPoint.uploadPacketSizeTotal ?? 0,

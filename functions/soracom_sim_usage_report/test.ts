@@ -1,6 +1,7 @@
 import { assertEquals } from "std/testing/asserts.ts";
 import {
   buildSimUsageSummary,
+  collectSimUsageReportData,
   formatUsageReportMessage,
   SoracomSimUsageReportFunctionDefinition,
 } from "./mod.ts";
@@ -154,6 +155,50 @@ Deno.test({
       message,
       t("soracom.messages.sim_usage_report_stats_unavailable", { count: 2 }),
     );
+  },
+});
+
+Deno.test({
+  name: "全ページ取得後のactiveなSIMだけ通信量を集計する",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const usageCalls: string[] = [];
+    const result = await collectSimUsageReportData(
+      {
+        listAllSims: () =>
+          Promise.resolve([
+            { ...baseSim, simId: "sim-1", status: "active" },
+            { ...baseSim, simId: "sim-2", status: "inactive" },
+            { ...baseSim, simId: "sim-3", status: "active" },
+          ]),
+        getAirUsageOfSim: (simId) => {
+          usageCalls.push(simId);
+          return Promise.resolve({
+            imsi: `${simId}-imsi`,
+            period: "day",
+            dataPoints: [
+              {
+                date: 1700000000000,
+                uploadByteSizeTotal: 1,
+                downloadByteSizeTotal: 2,
+                uploadPacketSizeTotal: 3,
+                downloadPacketSizeTotal: 4,
+              },
+            ],
+          });
+        },
+      },
+      "day",
+      1700000000,
+    );
+
+    assertEquals(result.totalSimCount, 3);
+    assertEquals(result.activeSimCount, 2);
+    assertEquals(result.summaries.length, 2);
+    assertEquals(usageCalls, ["sim-1", "sim-3"]);
   },
 });
 

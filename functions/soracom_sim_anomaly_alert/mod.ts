@@ -6,6 +6,10 @@ import type { SoracomSim } from "../../lib/soracom/mod.ts";
 /** 異常とみなすSIMステータス一覧 */
 const ANOMALY_STATUSES = ["suspended", "terminated", "deactivated"];
 
+interface SimAnomalySoracomClient {
+  listAllSims: (pageSize?: number) => Promise<SoracomSim[]>;
+}
+
 /**
  * SIM異常検知アラート関数定義
  *
@@ -91,6 +95,25 @@ export function formatAnomalyAlertMessage(
   return `*${header}*\n\n${simLines.join("\n\n")}`;
 }
 
+/**
+ * 全 SIM を走査して異常ステータスの SIM を検出します。
+ *
+ * @param soracomClient - SORACOM API クライアント
+ * @returns 異常 SIM 一覧と総 SIM 数
+ */
+export async function detectSimAnomalies(
+  soracomClient: SimAnomalySoracomClient,
+): Promise<{
+  anomalousSims: SoracomSim[];
+  totalCount: number;
+}> {
+  const sims = await soracomClient.listAllSims();
+  return {
+    anomalousSims: filterAnomalousSims(sims),
+    totalCount: sims.length,
+  };
+}
+
 export default SlackFunction(
   SoracomSimAnomalyAlertFunctionDefinition,
   async ({ inputs, client, env }) => {
@@ -98,13 +121,10 @@ export default SlackFunction(
       console.log(t("soracom.logs.checking_sim_anomaly"));
 
       const soracomClient = createSoracomClientFromEnv(env);
-      const result = await soracomClient.listSims(100);
-
-      const anomalousSims = filterAnomalousSims(result.sims);
-      const message = formatAnomalyAlertMessage(
-        anomalousSims,
-        result.sims.length,
+      const { anomalousSims, totalCount } = await detectSimAnomalies(
+        soracomClient,
       );
+      const message = formatAnomalyAlertMessage(anomalousSims, totalCount);
 
       // 異常がある場合のみ投稿（正常時もオプションで通知可能）
       await client.chat.postMessage({
@@ -115,7 +135,7 @@ export default SlackFunction(
       return {
         outputs: {
           anomaly_count: anomalousSims.length,
-          total_count: result.sims.length,
+          total_count: totalCount,
           message,
         },
       };

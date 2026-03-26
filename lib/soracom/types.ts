@@ -64,7 +64,7 @@ export interface SoracomSimListResult {
  * Air通信量統計データポイント
  */
 export interface AirStatsDataPoint {
-  /** 日時（UNIXタイムスタンプ） */
+  /** 日時（UNIXタイムスタンプ・ミリ秒） */
   date: number;
   /** アップロードバイト数 */
   uploadByteSizeTotal: number;

@@ -85,7 +85,9 @@ export function formatAirUsageMessage(
     totalUpload += dp.uploadByteSizeTotal;
     totalDownload += dp.downloadByteSizeTotal;
 
-    const date = new Date(dp.date).toISOString().split("T")[0];
+    const date = new Date(
+      dp.date < 1_000_000_000_000 ? dp.date * 1000 : dp.date,
+    ).toISOString().split("T")[0];
     const upload = formatBytes(dp.uploadByteSizeTotal);
     const download = formatBytes(dp.downloadByteSizeTotal);
 

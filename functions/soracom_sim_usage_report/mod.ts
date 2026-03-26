@@ -10,6 +10,16 @@ import { statsPeriodSchema } from "../../lib/validation/schemas.ts";
 const STATS_PERIOD_OPTIONS = ["day", "month"] as const;
 type StatsPeriod = typeof STATS_PERIOD_OPTIONS[number];
 
+interface SimUsageReportSoracomClient {
+  listAllSims: (pageSize?: number) => Promise<SoracomSim[]>;
+  getAirUsageOfSim: (
+    simId: string,
+    period: StatsPeriod,
+    from: number,
+    to: number,
+  ) => Promise<AirStatsResult>;
+}
+
 /**
  * SIMの通信量サマリー情報
  */
@@ -160,6 +170,56 @@ export function formatUsageReportMessage(
   return `*${header}*\n\n${simLines.join("\n\n")}\n\n*${grandTotal}*`;
 }
 
+/**
+ * 全 SIM を走査して、active な SIM の通信量サマリーを収集します。
+ *
+ * @param soracomClient - SORACOM API クライアント
+ * @param period - 集計期間
+ * @param now - 集計終了時刻（UNIX 秒）
+ * @returns レポート用の集計結果
+ */
+export async function collectSimUsageReportData(
+  soracomClient: SimUsageReportSoracomClient,
+  period: StatsPeriod,
+  now = Math.floor(Date.now() / 1000),
+): Promise<{
+  summaries: SimUsageSummary[];
+  totalSimCount: number;
+  activeSimCount: number;
+}> {
+  const allSims = await soracomClient.listAllSims();
+  const activeSims = allSims.filter((sim) => sim.status === "active");
+  const from = period === "month"
+    ? now - 30 * 24 * 60 * 60
+    : now - 24 * 60 * 60;
+
+  const summaries: SimUsageSummary[] = [];
+
+  for (const sim of activeSims) {
+    try {
+      const stats = await soracomClient.getAirUsageOfSim(
+        sim.simId,
+        period,
+        from,
+        now,
+      );
+      summaries.push(buildSimUsageSummary(sim, stats));
+    } catch (error) {
+      // 個別SIMの取得失敗はスキップしてレポートを続行
+      console.warn(
+        `Failed to get usage for ${sim.simId}:`,
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+  }
+
+  return {
+    summaries,
+    totalSimCount: allSims.length,
+    activeSimCount: activeSims.length,
+  };
+}
+
 export default SlackFunction(
   SoracomSimUsageReportFunctionDefinition,
   async ({ inputs, client, env }) => {
@@ -171,43 +231,12 @@ export default SlackFunction(
       );
 
       const soracomClient = createSoracomClientFromEnv(env);
-
-      // SIM一覧を取得
-      const simResult = await soracomClient.listSims(100);
-
-      // activeなSIMのみ通信量を取得
-      const activeSims = simResult.sims.filter(
-        (sim) => sim.status === "active",
-      );
-
-      const now = Math.floor(Date.now() / 1000);
-      const from = period === "month"
-        ? now - 30 * 24 * 60 * 60
-        : now - 24 * 60 * 60;
-
-      const summaries: SimUsageSummary[] = [];
-
-      for (const sim of activeSims) {
-        try {
-          const stats = await soracomClient.getAirUsageOfSim(
-            sim.simId,
-            period,
-            from,
-            now,
-          );
-          summaries.push(buildSimUsageSummary(sim, stats));
-        } catch (error) {
-          // 個別SIMの取得失敗はスキップしてレポートを続行
-          console.warn(
-            `Failed to get usage for ${sim.simId}:`,
-            error instanceof Error ? error.message : String(error),
-          );
-        }
-      }
+      const { summaries, totalSimCount, activeSimCount } =
+        await collectSimUsageReportData(soracomClient, period);
 
       const message = formatUsageReportMessage(summaries, period, {
-        totalSimCount: simResult.sims.length,
-        activeSimCount: activeSims.length,
+        totalSimCount,
+        activeSimCount,
       });
 
       let grandTotalUpload = 0;
