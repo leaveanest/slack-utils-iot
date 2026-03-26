@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/leaveanest/slack-utils-soracom/compare/v1.0.0...v1.0.1) (2026-03-26)
+
+
+### Bug Fixes
+
+* update GitHub Actions workflow for first interaction messages ([1a6f018](https://github.com/leaveanest/slack-utils-soracom/commit/1a6f018405576a5502864a2afc074451fcfc7db7))
+
 ## 1.0.0 (2026-03-26)
 
 
