@@ -354,43 +354,29 @@ function formatDiscomfortIndexNumber(value: number): string {
 }
 
 function resolveDiscomfortIndexCategory(value: number): string {
+  let key: string;
+
   if (value < 55) {
-    return t("soracom.messages.air_quality_discomfort_index_category_cold");
+    key = "soracom.messages.air_quality_discomfort_index_category_cold";
+  } else if (value < 60) {
+    key = "soracom.messages.air_quality_discomfort_index_category_chilly";
+  } else if (value < 65) {
+    key = "soracom.messages.air_quality_discomfort_index_category_neutral";
+  } else if (value < 70) {
+    key = "soracom.messages.air_quality_discomfort_index_category_pleasant";
+  } else if (value < 75) {
+    key = "soracom.messages.air_quality_discomfort_index_category_not_hot";
+  } else if (value < 80) {
+    key = "soracom.messages.air_quality_discomfort_index_category_slightly_hot";
+  } else if (value < 85) {
+    key =
+      "soracom.messages.air_quality_discomfort_index_category_hot_and_sweaty";
+  } else {
+    key =
+      "soracom.messages.air_quality_discomfort_index_category_unbearably_hot";
   }
 
-  if (value < 60) {
-    return t("soracom.messages.air_quality_discomfort_index_category_chilly");
-  }
-
-  if (value < 65) {
-    return t("soracom.messages.air_quality_discomfort_index_category_neutral");
-  }
-
-  if (value < 70) {
-    return t("soracom.messages.air_quality_discomfort_index_category_pleasant");
-  }
-
-  if (value < 75) {
-    return t(
-      "soracom.messages.air_quality_discomfort_index_category_not_hot",
-    );
-  }
-
-  if (value < 80) {
-    return t(
-      "soracom.messages.air_quality_discomfort_index_category_slightly_hot",
-    );
-  }
-
-  if (value < 85) {
-    return t(
-      "soracom.messages.air_quality_discomfort_index_category_hot_and_sweaty",
-    );
-  }
-
-  return t(
-    "soracom.messages.air_quality_discomfort_index_category_unbearably_hot",
-  );
+  return t(key);
 }
 
 function formatCriteriaViolationLines(
