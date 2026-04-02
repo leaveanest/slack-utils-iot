@@ -7,6 +7,7 @@ const RECORDING_LOOKBACK_MS = 6 * 60 * 60 * 1000;
 const RECORDING_OFFSET_MS = 10 * 1000;
 const EXPORT_POLL_INTERVAL_MS = 2 * 1000;
 const EXPORT_TIMEOUT_MS = 60 * 1000;
+const RETRYABLE_SORACAM_SNAPSHOT_DOWNLOAD_STATUSES = new Set([403, 404]);
 
 class RetryableSoraCamSnapshotDownloadError extends Error {
   response: Response;
@@ -180,7 +181,13 @@ export async function downloadSoraCamSnapshot(
       async () => {
         const response = await fetch(imageUrl);
 
-        if (!response.ok && response.status >= 500) {
+        if (
+          !response.ok &&
+          (
+            response.status >= 500 ||
+            RETRYABLE_SORACAM_SNAPSHOT_DOWNLOAD_STATUSES.has(response.status)
+          )
+        ) {
           throw new RetryableSoraCamSnapshotDownloadError(response);
         }
 
