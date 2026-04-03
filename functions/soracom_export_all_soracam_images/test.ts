@@ -15,6 +15,7 @@ import type {
   SoraCamImageExport,
 } from "../../lib/soracom/mod.ts";
 import {
+  ALL_SORACAM_EXPORT_CLEANUP_TASK_KEY,
   ALL_SORACAM_EXPORT_PARALLELISM,
   ALL_SORACAM_EXPORT_STALE_UNSTARTED_TASK_MS,
   ALL_SORACAM_EXPORT_TRIGGER_DELAY_MS,
@@ -843,18 +844,18 @@ Deno.test("子 run は再試行上限到達後に failed と詳細を残す", as
   });
 
   assertEquals(exportCalls, ["cam-1", "cam-1", "cam-1"]);
-  assertEquals(triggerCreates.length, 3);
+  assertEquals(triggerCreates.length, 4);
   assertEquals(triggerDeletes, ["Ft1", "Ft2", "Ft3"]);
   assertEquals(result.completedCount, 0);
   assertEquals(result.processingCount, 0);
   assertEquals(result.failedCount, 1);
   assertEquals(
-    await getAllSoraCamImageExportJob(client as never, "C123"),
-    null,
+    (await getAllSoraCamImageExportJob(client as never, "C123"))?.status,
+    "completed",
   );
   assertEquals(
-    await listAllSoraCamImageExportTasks(client as never, "C123"),
-    [],
+    (await getAllSoraCamImageExportTask(client as never, "C123:cam-1"))?.status,
+    "failed",
   );
   assertEquals(
     updates.at(-1)?.text.includes("Camera 1 (cam-1)"),
@@ -902,17 +903,17 @@ Deno.test("録画がない台は再試行せず failed にする", async () => {
 
   assertEquals(listRecordingCalls, ["cam-1"]);
   assertEquals(exportCalls, []);
-  assertEquals(triggerCreates.length, 1);
+  assertEquals(triggerCreates.length, 2);
   assertEquals(triggerDeletes, ["Ft1"]);
   assertEquals(result.failedCount, 1);
   assertEquals(result.processingCount, 0);
   assertEquals(
-    await getAllSoraCamImageExportJob(client as never, "C123"),
-    null,
+    (await getAllSoraCamImageExportJob(client as never, "C123"))?.status,
+    "completed",
   );
   assertEquals(
-    await listAllSoraCamImageExportTasks(client as never, "C123"),
-    [],
+    (await getAllSoraCamImageExportTask(client as never, "C123:cam-1"))?.status,
+    "failed",
   );
 });
 
@@ -1134,7 +1135,7 @@ Deno.test("対象デバイスが0台のときはジョブを作らずメッセ�
   );
 });
 
-Deno.test("全台処理が完了したら job と task の Datastore を掃除する", async () => {
+Deno.test("全台処理が完了したら cleanup trigger を作成し cleanup run で Datastore を掃除する", async () => {
   await prepareLocale("ja");
 
   const fetchStub = stub(
@@ -1163,7 +1164,7 @@ Deno.test("全台処理が完了したら job と task の Datastore を掃除�
 
   try {
     const devices = createDevices(1);
-    const { client } = createExportAllClient();
+    const { client, triggerCreates } = createExportAllClient();
     const { soracomClient } = createSoracomClientMock({
       devices,
       initialExports: {
@@ -1195,6 +1196,46 @@ Deno.test("全台処理が完了したら job と task の Datastore を掃除�
     assertEquals(result.completedCount, 1);
     assertEquals(result.processingCount, 0);
     assertEquals(result.failedCount, 0);
+    assertEquals(triggerCreates.length, 2);
+    assertEquals(
+      triggerCreates[1]?.inputs,
+      {
+        channel_id: { value: "C123" },
+        job_key: { value: "C123" },
+        task_key: { value: ALL_SORACAM_EXPORT_CLEANUP_TASK_KEY },
+        cleanup_claim_id: {
+          value: (await getAllSoraCamImageExportJob(client as never, "C123"))
+            ?.claimId,
+        },
+      },
+    );
+    assertEquals(
+      (await getAllSoraCamImageExportJob(client as never, "C123"))?.status,
+      "completed",
+    );
+    assertEquals(
+      (await getAllSoraCamImageExportTask(client as never, "C123:cam-1"))
+        ?.status,
+      "uploaded",
+    );
+
+    const cleanupClaimId = (
+      await getAllSoraCamImageExportJob(client as never, "C123")
+    )?.claimId;
+
+    const cleanupResult = await processAllSoraCamImageExport({
+      soracomClient,
+      client: client as never,
+      channelId: "C123",
+      jobKey: "C123",
+      taskKey: ALL_SORACAM_EXPORT_CLEANUP_TASK_KEY,
+      cleanupClaimId,
+      now: 1700000465000,
+    });
+
+    assertEquals(cleanupResult.completedCount, 1);
+    assertEquals(cleanupResult.processingCount, 0);
+    assertEquals(cleanupResult.failedCount, 0);
     assertEquals(
       await getAllSoraCamImageExportJob(client as never, "C123"),
       null,
@@ -1206,4 +1247,64 @@ Deno.test("全台処理が完了したら job と task の Datastore を掃除�
   } finally {
     fetchStub.restore();
   }
+});
+
+Deno.test("古い cleanup claim の run は新しいジョブを削除しない", async () => {
+  await prepareLocale("ja");
+
+  const devices = createDevices(1);
+  const { client } = createExportAllClient();
+  const timestamp = new Date(1700000405000).toISOString();
+
+  client.apps.datastore.put({
+    datastore: "soracom_all_soracam_image_export_jobs",
+    item: {
+      job_key: "C123",
+      channel_id: "C123",
+      message_ts: "1742281200.000100",
+      total_device_count: 1,
+      claim_id: "new-claim",
+      status: "pending",
+      created_at: timestamp,
+      updated_at: timestamp,
+    },
+  });
+  client.apps.datastore.put({
+    datastore: "soracom_all_soracam_image_export_tasks",
+    item: {
+      task_key: "C123:cam-1",
+      job_key: "C123",
+      channel_id: "C123",
+      device_id: devices[0].deviceId,
+      device_name: devices[0].name,
+      sort_index: 0,
+      export_id: "",
+      status: "queued",
+      image_url: "",
+      retry_count: 0,
+      created_at: timestamp,
+      updated_at: timestamp,
+    },
+  });
+
+  const { soracomClient } = createSoracomClientMock({ devices });
+  const result = await processAllSoraCamImageExport({
+    soracomClient,
+    client: client as never,
+    channelId: "C123",
+    jobKey: "C123",
+    taskKey: ALL_SORACAM_EXPORT_CLEANUP_TASK_KEY,
+    cleanupClaimId: "old-claim",
+    now: 1700000465000,
+  });
+
+  assertEquals(result.deviceCount, 1);
+  assertEquals(
+    (await getAllSoraCamImageExportJob(client as never, "C123"))?.status,
+    "pending",
+  );
+  assertEquals(
+    (await getAllSoraCamImageExportTask(client as never, "C123:cam-1"))?.status,
+    "queued",
+  );
 });
