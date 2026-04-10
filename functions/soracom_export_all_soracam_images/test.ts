@@ -19,6 +19,7 @@ import {
   ALL_SORACAM_EXPORT_PARALLELISM,
   ALL_SORACAM_EXPORT_STALE_UNSTARTED_TASK_MS,
   ALL_SORACAM_EXPORT_TRIGGER_DELAY_MS,
+  ALL_SORACAM_EXPORT_TRIGGER_STAGGER_MS,
   formatAllSoraCamImageExportMessage,
   formatPendingAllSoraCamImageExportMessage,
   formatSoraCamBatchImageExportMessage,
@@ -532,6 +533,18 @@ Deno.test("トリガー開始時刻は trigger 作成時点を基準に計算さ
       {
         start_time: new Date(
           1700000500000 + ALL_SORACAM_EXPORT_TRIGGER_DELAY_MS,
+        ).toISOString(),
+        frequency: {
+          type: "once",
+        },
+      },
+    );
+    assertEquals(
+      triggerCreates[1]?.schedule,
+      {
+        start_time: new Date(
+          1700000500000 + ALL_SORACAM_EXPORT_TRIGGER_DELAY_MS +
+            ALL_SORACAM_EXPORT_TRIGGER_STAGGER_MS,
         ).toISOString(),
         frequency: {
           type: "once",

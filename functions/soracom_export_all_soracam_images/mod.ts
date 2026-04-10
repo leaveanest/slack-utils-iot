@@ -37,6 +37,9 @@ export const ALL_SORACAM_EXPORT_PARALLELISM = 5;
 // Deployed custom functions have a 60s timeout, so the fan-out path should not
 // inherit the conservative trigger delay chosen for `slack run`.
 export const ALL_SORACAM_EXPORT_TRIGGER_DELAY_MS = 1_000;
+// Slack Platform occasionally fails to resolve immediately-started workflow
+// steps when many one-off triggers are created at once, so stagger fan-out.
+export const ALL_SORACAM_EXPORT_TRIGGER_STAGGER_MS = 1_000;
 export const ALL_SORACAM_EXPORT_JOB_CLAIM_SETTLE_MS = 750;
 export const ALL_SORACAM_EXPORT_TASK_CLAIM_SETTLE_MS = 750;
 export const ALL_SORACAM_EXPORT_CREATION_WAIT_RETRIES = 20;
@@ -882,6 +885,11 @@ async function scheduleTaskContinuation(params: {
   return nextTask;
 }
 
+function buildFanoutTriggerDelayMs(scheduleIndex: number): number {
+  return ALL_SORACAM_EXPORT_TRIGGER_DELAY_MS +
+    (scheduleIndex * ALL_SORACAM_EXPORT_TRIGGER_STAGGER_MS);
+}
+
 async function claimAllSoraCamImageExportTask(
   client: AllSoraCamImageExportClient,
   task: SoracomAllSoraCamImageExportTask,
@@ -965,6 +973,7 @@ async function fillAllSoraCamImageExportFanoutWindow(params: {
     params.job.jobKey,
   );
   let summary = summarizeAllSoraCamImageExportTasks(tasks);
+  let scheduledCount = 0;
 
   while (
     summary.processing < ALL_SORACAM_EXPORT_PARALLELISM && summary.queued > 0
@@ -984,7 +993,9 @@ async function fillAllSoraCamImageExportFanoutWindow(params: {
         client: params.client,
         task: claimedTask,
         now: params.now,
+        delayMs: buildFanoutTriggerDelayMs(scheduledCount),
       });
+      scheduledCount += 1;
     } catch (error) {
       await upsertAllSoraCamImageExportTask(
         params.client,

@@ -1,0 +1,29 @@
+{
+  "statements": [
+    {
+      "effect": "deny",
+      "api": [
+        "User:updateUserPermission",
+        "Role:*"
+      ]
+    },
+    {
+      "effect": "allow",
+      "api": "User:updateUserPassword",
+      "condition": "pathVariable('user_name') == samUserName"
+    },
+    {
+      "effect": "allow",
+      "api": [
+        "Sim:listSims",
+        "Stats:getAirStats",
+        "Stats:getAirStatsOfSim",
+        "DataEntry:getDataEntries",
+        "SoraCam:listSoraCamDevices",
+        "SoraCam:listSoraCamDeviceRecordingsAndEvents",
+        "SoraCam:exportSoraCamDeviceRecordedImage",
+        "SoraCam:getSoraCamDeviceExportedImage"
+      ]
+    }
+  ]
+}
