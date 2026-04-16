@@ -1,10 +1,10 @@
-const semanticRelease = require("semantic-release").default ||
-  require("semantic-release");
+const fs = require("node:fs");
 const path = require("path");
 const process = require("node:process");
 
 (async () => {
   try {
+    const { default: semanticRelease } = await import("semantic-release");
     const config = require(path.resolve(process.cwd(), "release.config.cjs"));
     const result = await semanticRelease({
       ...config,
@@ -18,7 +18,6 @@ const process = require("node:process");
     }
 
     if (result.nextRelease && result.nextRelease.notes) {
-      const fs = require("fs");
       const notesPath = path.resolve(process.cwd(), "release-notes.md");
       fs.writeFileSync(notesPath, `${result.nextRelease.notes}\n`, "utf8");
       console.log(`Release notes written to ${notesPath}`);

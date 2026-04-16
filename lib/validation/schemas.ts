@@ -9,6 +9,13 @@ import { initI18n, t } from "../i18n/mod.ts";
 // トップレベルawaitでi18nを初期化
 await initI18n();
 
+function addValidationIssue(ctx: z.RefinementCtx, message: string) {
+  ctx.addIssue({
+    code: z.ZodIssueCode.custom,
+    message,
+  });
+}
+
 /**
  * i18n対応のSlackチャンネル ID スキーマを生成
  * 形式: C + 英数字大文字
@@ -27,21 +34,11 @@ await initI18n();
 export function createChannelIdSchema() {
   return z.string().superRefine((val, ctx) => {
     if (val.length === 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.too_small,
-        minimum: 1,
-        type: "string",
-        inclusive: true,
-        message: t("errors.validation.channel_id_empty"),
-      });
+      addValidationIssue(ctx, t("errors.validation.channel_id_empty"));
       return;
     }
     if (!/^C[A-Z0-9]+$/.test(val)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.invalid_string,
-        validation: "regex",
-        message: t("errors.validation.channel_id_format"),
-      });
+      addValidationIssue(ctx, t("errors.validation.channel_id_format"));
     }
   });
 }
@@ -64,21 +61,11 @@ export function createChannelIdSchema() {
 export function createUserIdSchema() {
   return z.string().superRefine((val, ctx) => {
     if (val.length === 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.too_small,
-        minimum: 1,
-        type: "string",
-        inclusive: true,
-        message: t("errors.validation.user_id_empty"),
-      });
+      addValidationIssue(ctx, t("errors.validation.user_id_empty"));
       return;
     }
     if (!/^[UW][A-Z0-9]+$/.test(val)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.invalid_string,
-        validation: "regex",
-        message: t("errors.validation.user_id_format"),
-      });
+      addValidationIssue(ctx, t("errors.validation.user_id_format"));
     }
   });
 }
@@ -100,13 +87,7 @@ export function createUserIdSchema() {
 export function createNonEmptyStringSchema() {
   return z.string().superRefine((val, ctx) => {
     if (val.length === 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.too_small,
-        minimum: 1,
-        type: "string",
-        inclusive: true,
-        message: t("errors.validation.value_empty"),
-      });
+      addValidationIssue(ctx, t("errors.validation.value_empty"));
     }
   });
 }
@@ -165,21 +146,11 @@ export const nonEmptyStringSchema = createNonEmptyStringSchema();
 export function createSimIdSchema() {
   return z.string().superRefine((val, ctx) => {
     if (val.length === 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.too_small,
-        minimum: 1,
-        type: "string",
-        inclusive: true,
-        message: t("soracom.errors.validation.sim_id_empty"),
-      });
+      addValidationIssue(ctx, t("soracom.errors.validation.sim_id_empty"));
       return;
     }
     if (!/^\d{18,22}$/.test(val)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.invalid_string,
-        validation: "regex",
-        message: t("soracom.errors.validation.sim_id_format"),
-      });
+      addValidationIssue(ctx, t("soracom.errors.validation.sim_id_format"));
     }
   });
 }
@@ -199,21 +170,11 @@ export function createSimIdSchema() {
 export function createImsiSchema() {
   return z.string().superRefine((val, ctx) => {
     if (val.length === 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.too_small,
-        minimum: 1,
-        type: "string",
-        inclusive: true,
-        message: t("soracom.errors.validation.imsi_empty"),
-      });
+      addValidationIssue(ctx, t("soracom.errors.validation.imsi_empty"));
       return;
     }
     if (!/^\d{15}$/.test(val)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.invalid_string,
-        validation: "regex",
-        message: t("soracom.errors.validation.imsi_format"),
-      });
+      addValidationIssue(ctx, t("soracom.errors.validation.imsi_format"));
     }
   });
 }
@@ -227,12 +188,10 @@ export function createImsiSchema() {
 export function createCoverageTypeSchema() {
   return z.string().superRefine((val, ctx) => {
     if (val !== "jp" && val !== "g") {
-      ctx.addIssue({
-        code: z.ZodIssueCode.invalid_enum_value,
-        options: ["jp", "g"],
-        received: val,
-        message: t("soracom.errors.validation.coverage_type_invalid"),
-      });
+      addValidationIssue(
+        ctx,
+        t("soracom.errors.validation.coverage_type_invalid"),
+      );
     }
   });
 }
@@ -246,12 +205,10 @@ export function createCoverageTypeSchema() {
 export function createStatsPeriodSchema() {
   return z.string().superRefine((val, ctx) => {
     if (val !== "day" && val !== "month") {
-      ctx.addIssue({
-        code: z.ZodIssueCode.invalid_enum_value,
-        options: ["day", "month"],
-        received: val,
-        message: t("soracom.errors.validation.stats_period_invalid"),
-      });
+      addValidationIssue(
+        ctx,
+        t("soracom.errors.validation.stats_period_invalid"),
+      );
     }
   });
 }
@@ -265,14 +222,10 @@ export function createStatsPeriodSchema() {
 export function createAirQualityReportPeriodSchema() {
   return z.string().superRefine((val, ctx) => {
     if (val !== "1h" && val !== "1d" && val !== "1m") {
-      ctx.addIssue({
-        code: z.ZodIssueCode.invalid_enum_value,
-        options: ["1h", "1d", "1m"],
-        received: val,
-        message: t(
-          "soracom.errors.validation.air_quality_report_period_invalid",
-        ),
-      });
+      addValidationIssue(
+        ctx,
+        t("soracom.errors.validation.air_quality_report_period_invalid"),
+      );
     }
   });
 }
@@ -286,12 +239,10 @@ export function createAirQualityReportPeriodSchema() {
 export function createGpsMultiunitPeriodSchema() {
   return z.string().superRefine((val, ctx) => {
     if (val !== "1h" && val !== "1d") {
-      ctx.addIssue({
-        code: z.ZodIssueCode.invalid_enum_value,
-        options: ["1h", "1d"],
-        received: val,
-        message: t("soracom.errors.validation.gps_multiunit_period_invalid"),
-      });
+      addValidationIssue(
+        ctx,
+        t("soracom.errors.validation.gps_multiunit_period_invalid"),
+      );
     }
   });
 }
@@ -311,12 +262,10 @@ export function createGpsMultiunitSampleCountSchema() {
       val < 1 ||
       val > 24
     ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: t(
-          "soracom.errors.validation.gps_multiunit_sample_count_invalid",
-        ),
-      });
+      addValidationIssue(
+        ctx,
+        t("soracom.errors.validation.gps_multiunit_sample_count_invalid"),
+      );
     }
   }).transform((val) => val as number);
 }
@@ -335,10 +284,7 @@ export function createLatitudeSchema() {
       val < -90 ||
       val > 90
     ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: t("soracom.errors.validation.latitude_invalid"),
-      });
+      addValidationIssue(ctx, t("soracom.errors.validation.latitude_invalid"));
     }
   }).transform((val) => val as number);
 }
@@ -357,10 +303,7 @@ export function createLongitudeSchema() {
       val < -180 ||
       val > 180
     ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: t("soracom.errors.validation.longitude_invalid"),
-      });
+      addValidationIssue(ctx, t("soracom.errors.validation.longitude_invalid"));
     }
   }).transform((val) => val as number);
 }
@@ -378,10 +321,10 @@ export function createRadiusMetersSchema() {
       !Number.isFinite(val) ||
       val <= 0
     ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: t("soracom.errors.validation.radius_meters_invalid"),
-      });
+      addValidationIssue(
+        ctx,
+        t("soracom.errors.validation.radius_meters_invalid"),
+      );
     }
   }).transform((val) => val as number);
 }
@@ -401,21 +344,17 @@ export function createRadiusMetersSchema() {
 export function createSoraCamDeviceIdSchema() {
   return z.string().superRefine((val, ctx) => {
     if (val.length === 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.too_small,
-        minimum: 1,
-        type: "string",
-        inclusive: true,
-        message: t("soracom.errors.validation.soracam_device_id_empty"),
-      });
+      addValidationIssue(
+        ctx,
+        t("soracom.errors.validation.soracam_device_id_empty"),
+      );
       return;
     }
     if (!/^[A-Za-z0-9-]+$/.test(val)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.invalid_string,
-        validation: "regex",
-        message: t("soracom.errors.validation.soracam_device_id_format"),
-      });
+      addValidationIssue(
+        ctx,
+        t("soracom.errors.validation.soracam_device_id_format"),
+      );
     }
   });
 }

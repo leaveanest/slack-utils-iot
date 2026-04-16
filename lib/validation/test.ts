@@ -124,7 +124,7 @@ Deno.test({
     assertEquals(result.success, false);
     if (!result.success) {
       assertEquals(
-        result.error.errors[0].message,
+        result.error.issues[0].message,
         "Channel ID must start with 'C' followed by uppercase alphanumeric characters",
       );
     }
@@ -145,7 +145,7 @@ Deno.test({
     if (!result.success) {
       // 日本語のエラーメッセージを確認（部分一致）
       assertEquals(
-        result.error.errors[0].message.includes("チャンネルID"),
+        result.error.issues[0].message.includes("チャンネルID"),
         true,
       );
     }
@@ -165,7 +165,7 @@ Deno.test({
     assertEquals(result.success, false);
     if (!result.success) {
       assertEquals(
-        result.error.errors[0].message,
+        result.error.issues[0].message,
         "User ID must start with 'U' or 'W' followed by uppercase alphanumeric characters",
       );
     }
@@ -186,7 +186,7 @@ Deno.test({
     if (!result.success) {
       // 日本語のエラーメッセージを確認（部分一致）
       assertEquals(
-        result.error.errors[0].message.includes("ユーザーID"),
+        result.error.issues[0].message.includes("ユーザーID"),
         true,
       );
     }
@@ -206,7 +206,7 @@ Deno.test({
     assertEquals(result.success, false);
     if (!result.success) {
       assertEquals(
-        result.error.errors[0].message,
+        result.error.issues[0].message,
         "Value cannot be empty",
       );
     }
@@ -227,7 +227,7 @@ Deno.test({
     if (!result.success) {
       // 日本語のエラーメッセージを確認（部分一致）
       assertEquals(
-        result.error.errors[0].message.includes("空"),
+        result.error.issues[0].message.includes("空"),
         true,
       );
     }
@@ -246,7 +246,7 @@ Deno.test({
     assertEquals(result1.success, false);
     if (!result1.success) {
       assertEquals(
-        result1.error.errors[0].message,
+        result1.error.issues[0].message,
         "Channel ID must start with 'C' followed by uppercase alphanumeric characters",
       );
     }
@@ -258,7 +258,7 @@ Deno.test({
     if (!result2.success) {
       // 日本語のエラーメッセージが表示される
       assertEquals(
-        result2.error.errors[0].message.includes("チャンネルID"),
+        result2.error.issues[0].message.includes("チャンネルID"),
         true,
       );
     }
@@ -270,7 +270,7 @@ Deno.test({
     if (!result3.success) {
       // 再び英語のエラーメッセージが表示される
       assertEquals(
-        result3.error.errors[0].message,
+        result3.error.issues[0].message,
         "Channel ID must start with 'C' followed by uppercase alphanumeric characters",
       );
     }
@@ -408,7 +408,7 @@ Deno.test({
     assertEquals(result.success, false);
     if (!result.success) {
       assertEquals(
-        result.error.errors[0].message.includes("SIM ID"),
+        result.error.issues[0].message.includes("SIM ID"),
         true,
       );
     }
@@ -428,7 +428,7 @@ Deno.test({
     assertEquals(result.success, false);
     if (!result.success) {
       assertEquals(
-        result.error.errors[0].message.includes("IMSI"),
+        result.error.issues[0].message.includes("IMSI"),
         true,
       );
     }
@@ -448,7 +448,7 @@ Deno.test({
     assertEquals(result.success, false);
     if (!result.success) {
       assertEquals(
-        result.error.errors[0].message.includes("GPS multiunit period"),
+        result.error.issues[0].message.includes("GPS multiunit period"),
         true,
       );
     }
@@ -468,7 +468,7 @@ Deno.test({
     assertEquals(result.success, false);
     if (!result.success) {
       assertEquals(
-        result.error.errors[0].message.includes("サンプル数"),
+        result.error.issues[0].message.includes("サンプル数"),
         true,
       );
     }
@@ -488,7 +488,7 @@ Deno.test({
     assertEquals(result.success, false);
     if (!result.success) {
       assertEquals(
-        result.error.errors[0].message.includes("Latitude"),
+        result.error.issues[0].message.includes("Latitude"),
         true,
       );
     }
@@ -508,7 +508,7 @@ Deno.test({
     assertEquals(result.success, false);
     if (!result.success) {
       assertEquals(
-        result.error.errors[0].message.includes("経度"),
+        result.error.issues[0].message.includes("経度"),
         true,
       );
     }
@@ -528,7 +528,7 @@ Deno.test({
     assertEquals(result.success, false);
     if (!result.success) {
       assertEquals(
-        result.error.errors[0].message.includes("Radius"),
+        result.error.issues[0].message.includes("Radius"),
         true,
       );
     }
@@ -570,7 +570,7 @@ Deno.test({
     assertEquals(result.success, false);
     if (!result.success) {
       assertEquals(
-        result.error.errors[0].message.includes("device ID"),
+        result.error.issues[0].message.includes("device ID"),
         true,
       );
     }
