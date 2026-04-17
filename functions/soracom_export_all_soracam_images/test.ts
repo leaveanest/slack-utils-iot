@@ -525,6 +525,7 @@ Deno.test("トリガー開始時刻は trigger 作成時点を基準に計算さ
       client: client as never,
       channelId: "C123",
       now: 1700000400000,
+      workflowAppId: "A123",
     });
 
     assertEquals(triggerCreates.length, ALL_SORACAM_EXPORT_PARALLELISM);
@@ -539,6 +540,7 @@ Deno.test("トリガー開始時刻は trigger 作成時点を基準に計算さ
         },
       },
     );
+    assertEquals(triggerCreates[0]?.workflow_app_id, "A123");
   } finally {
     dateNowStub.restore();
   }
@@ -564,6 +566,7 @@ Deno.test("processing 継続用トリガーは retry delay を使って再スケ
       client: client as never,
       channelId: "C123",
       now: 1700000400000,
+      workflowAppId: "A123",
     });
 
     await processAllSoraCamImageExport({
@@ -573,6 +576,7 @@ Deno.test("processing 継続用トリガーは retry delay を使って再スケ
       jobKey: "C123",
       taskKey: buildAllSoraCamImageExportTaskKey("C123", "cam-1"),
       now: 1700000405000,
+      workflowAppId: "A123",
     });
 
     assertEquals(triggerCreates.length, ALL_SORACAM_EXPORT_PARALLELISM + 1);
@@ -587,6 +591,7 @@ Deno.test("processing 継続用トリガーは retry delay を使って再スケ
         },
       },
     );
+    assertEquals(triggerCreates.at(-1)?.workflow_app_id, "A123");
   } finally {
     dateNowStub.restore();
   }
