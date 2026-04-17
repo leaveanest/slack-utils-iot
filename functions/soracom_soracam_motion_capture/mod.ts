@@ -1,10 +1,13 @@
-import { TriggerTypes } from "deno-slack-api/mod.ts";
 import { DefineFunction, Schema, SlackFunction } from "deno-slack-sdk/mod.ts";
 import { t } from "../../lib/i18n/mod.ts";
 import {
   type SlackApiClient,
   uploadSlackFileToChannel,
 } from "../../lib/slack/file_upload.ts";
+import {
+  createScheduledWorkflowTrigger,
+  resolveWorkflowAppId,
+} from "../../lib/slack/workflow_trigger.ts";
 import {
   buildMotionCaptureJobKey,
   buildSoraCamSnapshotFileName,
@@ -161,8 +164,8 @@ export const MOTION_CAPTURE_CONTINUATION_DELAY_MS = 60_000;
 export const MOTION_CAPTURE_CREATION_SETTLE_MS = 750;
 export const MOTION_CAPTURE_CREATION_WAIT_RETRIES = 20;
 export const MOTION_CAPTURE_CREATION_WAIT_INTERVAL_MS = 250;
-const MOTION_CAPTURE_WORKFLOW_PATH =
-  "#/workflows/soracom_soracam_motion_capture_workflow";
+const MOTION_CAPTURE_WORKFLOW_CALLBACK_ID =
+  "soracom_soracam_motion_capture_workflow";
 const MOTION_CAPTURE_PENDING_THREAD_TS = "__pending__";
 
 /**
@@ -545,13 +548,14 @@ async function scheduleMotionCaptureContinuation(
   deviceId: string,
   channelId: string,
   now: number,
+  workflowAppId?: string,
 ): Promise<string> {
   const startTime = new Date(now + MOTION_CAPTURE_CONTINUATION_DELAY_MS)
     .toISOString();
-  const response = await client.workflows.triggers.create({
-    type: TriggerTypes.Scheduled,
+  const response = await createScheduledWorkflowTrigger({
+    client,
+    workflowCallbackId: MOTION_CAPTURE_WORKFLOW_CALLBACK_ID,
     name: t("soracom.messages.soracam_motion_trigger_name", { deviceId }),
-    workflow: MOTION_CAPTURE_WORKFLOW_PATH,
     inputs: {
       device_id: { value: deviceId },
       channel_id: { value: channelId },
@@ -562,6 +566,7 @@ async function scheduleMotionCaptureContinuation(
         type: "once",
       },
     },
+    workflowAppId,
   });
 
   if (!response.ok || !response.trigger?.id) {
@@ -592,6 +597,7 @@ export async function processMotionCaptureBatch(
     >;
     channelId: string;
     deviceId: string;
+    workflowAppId?: string;
     now?: number;
     nowFn?: () => number;
     delayFn?: DelayFn;
@@ -709,6 +715,7 @@ export async function processMotionCaptureBatch(
       params.deviceId,
       params.channelId,
       nowFn(),
+      params.workflowAppId,
     );
     job = setMotionCaptureContinuationTrigger(
       job,
@@ -750,9 +757,16 @@ export async function processMotionCaptureBatch(
 
 export default SlackFunction(
   SoracomSoraCamMotionCaptureFunctionDefinition,
-  async ({ inputs, client, env }) => {
+  async (context) => {
     try {
+      const { inputs, client, env } = context;
       const validDeviceId = soraCamDeviceIdSchema.parse(inputs.device_id);
+      const slackClient = client as unknown as MotionCaptureClient;
+      const workflowAppId = await resolveWorkflowAppId({
+        client: slackClient,
+        env,
+        body: (context as { body?: unknown }).body,
+      });
 
       console.log(
         t("soracom.logs.checking_soracam_motion", {
@@ -761,10 +775,11 @@ export default SlackFunction(
       );
 
       const result = await processMotionCaptureBatch({
-        client: client as unknown as MotionCaptureClient,
+        client: slackClient,
         soracomClient: createSoracomClientFromEnv(env),
         channelId: inputs.channel_id,
         deviceId: validDeviceId,
+        workflowAppId,
       });
 
       return {

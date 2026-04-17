@@ -1,10 +1,13 @@
-import { TriggerTypes } from "deno-slack-api/mod.ts";
 import { DefineFunction, Schema, SlackFunction } from "deno-slack-sdk/mod.ts";
 import { t } from "../../lib/i18n/mod.ts";
 import {
   type SlackApiClient,
   uploadSlackFileToChannel,
 } from "../../lib/slack/file_upload.ts";
+import {
+  createScheduledWorkflowTrigger,
+  resolveWorkflowAppId,
+} from "../../lib/slack/workflow_trigger.ts";
 import {
   buildAllSoraCamImageExportJobKey,
   buildAllSoraCamImageExportTaskKey,
@@ -50,8 +53,8 @@ export const ALL_SORACAM_EXPORT_FAILED_DETAIL_LIMIT = 3;
 export const ALL_SORACAM_EXPORT_CLEANUP_DELAY_MS = 60_000;
 export const ALL_SORACAM_EXPORT_CLEANUP_TASK_KEY = "__cleanup__";
 
-const ALL_SORACAM_EXPORT_WORKFLOW_PATH =
-  "#/workflows/soracom_export_all_soracam_images_workflow";
+const ALL_SORACAM_EXPORT_WORKFLOW_CALLBACK_ID =
+  "soracom_export_all_soracam_images_workflow";
 const ALL_SORACAM_EXPORT_PENDING_MESSAGE_TS = "__pending__";
 
 type AllSoraCamImageExportRunMode = "parent" | "worker" | "cleanup";
@@ -789,12 +792,13 @@ async function scheduleAllSoraCamImageExportTaskRun(
   jobKey: string,
   taskKey: string,
   now: number,
+  workflowAppId?: string,
   delayMs = ALL_SORACAM_EXPORT_TRIGGER_DELAY_MS,
 ): Promise<string> {
-  const response = await client.workflows.triggers.create({
-    type: TriggerTypes.Scheduled,
+  const response = await createScheduledWorkflowTrigger({
+    client,
+    workflowCallbackId: ALL_SORACAM_EXPORT_WORKFLOW_CALLBACK_ID,
     name: t("soracom.messages.soracam_all_image_exports_trigger_name"),
-    workflow: ALL_SORACAM_EXPORT_WORKFLOW_PATH,
     schedule: {
       start_time: buildScheduledTriggerStartTime(now, delayMs),
       frequency: {
@@ -806,6 +810,7 @@ async function scheduleAllSoraCamImageExportTaskRun(
       job_key: { value: jobKey },
       task_key: { value: taskKey },
     },
+    workflowAppId,
   });
 
   if (!response.ok || !response.trigger?.id) {
@@ -825,12 +830,13 @@ async function scheduleAllSoraCamImageExportCleanupRun(
   jobKey: string,
   cleanupClaimId: string,
   now: number,
+  workflowAppId?: string,
   delayMs = ALL_SORACAM_EXPORT_CLEANUP_DELAY_MS,
 ): Promise<void> {
-  const response = await client.workflows.triggers.create({
-    type: TriggerTypes.Scheduled,
+  const response = await createScheduledWorkflowTrigger({
+    client,
+    workflowCallbackId: ALL_SORACAM_EXPORT_WORKFLOW_CALLBACK_ID,
     name: t("soracom.messages.soracam_all_image_exports_trigger_name"),
-    workflow: ALL_SORACAM_EXPORT_WORKFLOW_PATH,
     schedule: {
       start_time: buildScheduledTriggerStartTime(now, delayMs),
       frequency: {
@@ -843,6 +849,7 @@ async function scheduleAllSoraCamImageExportCleanupRun(
       task_key: { value: ALL_SORACAM_EXPORT_CLEANUP_TASK_KEY },
       cleanup_claim_id: { value: cleanupClaimId },
     },
+    workflowAppId,
   });
 
   if (!response.ok) {
@@ -898,6 +905,7 @@ async function scheduleTaskContinuation(params: {
   client: AllSoraCamImageExportClient;
   task: SoracomAllSoraCamImageExportTask;
   now: number;
+  workflowAppId?: string;
   delayMs?: number;
 }): Promise<SoracomAllSoraCamImageExportTask> {
   const triggerId = await scheduleAllSoraCamImageExportTaskRun(
@@ -906,6 +914,7 @@ async function scheduleTaskContinuation(params: {
     params.task.jobKey,
     params.task.taskKey,
     params.now,
+    params.workflowAppId,
     params.delayMs,
   );
   const nextTask = {
@@ -977,6 +986,7 @@ async function fillAllSoraCamImageExportFanoutWindow(params: {
   client: AllSoraCamImageExportClient;
   job: SoracomAllSoraCamImageExportJob;
   now: number;
+  workflowAppId?: string;
   delayFn: DelayFn;
 }): Promise<void> {
   let tasks = await listAllSoraCamImageExportTasks(
@@ -1010,6 +1020,7 @@ async function fillAllSoraCamImageExportFanoutWindow(params: {
         status: "processing",
       },
       now: params.now,
+      workflowAppId: params.workflowAppId,
     });
   }
 
@@ -1037,6 +1048,7 @@ async function fillAllSoraCamImageExportFanoutWindow(params: {
         client: params.client,
         task: claimedTask,
         now: params.now,
+        workflowAppId: params.workflowAppId,
       });
     } catch (error) {
       await upsertAllSoraCamImageExportTask(
@@ -1209,6 +1221,7 @@ async function refreshAllSoraCamImageExportProgress(params: {
   client: AllSoraCamImageExportClient;
   job: SoracomAllSoraCamImageExportJob;
   now: number;
+  workflowAppId?: string;
   delayFn: DelayFn;
 }): Promise<AllSoraCamImageExportResult> {
   const latestJob = await getAllSoraCamImageExportJob(
@@ -1309,6 +1322,7 @@ async function refreshAllSoraCamImageExportProgress(params: {
       nextJob.jobKey,
       nextJob.claimId,
       params.now,
+      params.workflowAppId,
     );
   }
 
@@ -1333,6 +1347,7 @@ async function processAllSoraCamImageExportWorker(params: {
   jobKey: string;
   taskKey: string;
   now: number;
+  workflowAppId?: string;
   delayFn: DelayFn;
 }): Promise<AllSoraCamImageExportResult> {
   const job = await getAllSoraCamImageExportJob(
@@ -1372,6 +1387,7 @@ async function processAllSoraCamImageExportWorker(params: {
       client: params.client,
       job,
       now: params.now,
+      workflowAppId: params.workflowAppId,
       delayFn: params.delayFn,
     });
   }
@@ -1397,6 +1413,7 @@ async function processAllSoraCamImageExportWorker(params: {
       client: params.client,
       task: nextTask,
       now: params.now,
+      workflowAppId: params.workflowAppId,
       delayMs: ALL_SORACAM_EXPORT_TASK_RETRY_DELAY_MS,
     });
   } else {
@@ -1405,6 +1422,7 @@ async function processAllSoraCamImageExportWorker(params: {
       client: params.client,
       job,
       now: params.now,
+      workflowAppId: params.workflowAppId,
       delayFn: params.delayFn,
     });
   }
@@ -1413,6 +1431,7 @@ async function processAllSoraCamImageExportWorker(params: {
     client: params.client,
     job,
     now: params.now,
+    workflowAppId: params.workflowAppId,
     delayFn: params.delayFn,
   });
 }
@@ -1526,6 +1545,7 @@ export async function processAllSoraCamImageExport(params: {
   jobKey?: string;
   taskKey?: string;
   cleanupClaimId?: string;
+  workflowAppId?: string;
   now?: number;
   nowFn?: () => number;
   delayFn?: DelayFn;
@@ -1554,6 +1574,7 @@ export async function processAllSoraCamImageExport(params: {
       jobKey: params.jobKey,
       taskKey: params.taskKey,
       now,
+      workflowAppId: params.workflowAppId,
       delayFn,
     });
   }
@@ -1629,6 +1650,7 @@ export async function processAllSoraCamImageExport(params: {
     client: params.client,
     job,
     now,
+    workflowAppId: params.workflowAppId,
     delayFn,
   });
 
@@ -1636,17 +1658,25 @@ export async function processAllSoraCamImageExport(params: {
     client: params.client,
     job,
     now,
+    workflowAppId: params.workflowAppId,
     delayFn,
   });
 }
 
 export default SlackFunction(
   SoracomExportAllSoraCamImagesFunctionDefinition,
-  async ({ inputs, client, env }) => {
+  async (context) => {
     try {
+      const { inputs, client, env } = context;
       const runMode = resolveAllSoraCamImageExportRunMode({
         jobKey: inputs.job_key,
         taskKey: inputs.task_key,
+      });
+      const slackClient = client as unknown as AllSoraCamImageExportClient;
+      const workflowAppId = await resolveWorkflowAppId({
+        client: slackClient,
+        env,
+        body: (context as { body?: unknown }).body,
       });
 
       console.log(t("soracom.logs.exporting_all_soracam_images"));
@@ -1663,11 +1693,12 @@ export default SlackFunction(
       const soracomClient = createSoracomClientFromEnv(env);
       const result = await processAllSoraCamImageExport({
         soracomClient,
-        client: client as unknown as AllSoraCamImageExportClient,
+        client: slackClient,
         channelId: inputs.channel_id,
         jobKey: inputs.job_key,
         taskKey: inputs.task_key,
         cleanupClaimId: inputs.cleanup_claim_id,
+        workflowAppId,
       });
 
       console.log(
