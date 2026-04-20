@@ -53,6 +53,7 @@ interface RawSoracomSessionStatus {
 
 interface RawSoracomSim {
   simId?: string;
+  name?: string;
   imsi?: string;
   msisdn?: string;
   status?: string;
@@ -186,6 +187,7 @@ export function normalizeSoracomSim(rawSim: RawSoracomSim): SoracomSim {
 
   return {
     simId: rawSim.simId || "",
+    ...(rawSim.name ? { name: rawSim.name } : {}),
     imsi: rawSim.imsi ||
       rawSim.sessionStatus?.imsi ||
       subscriber?.imsi ||
@@ -793,7 +795,19 @@ export class SoracomClient {
     return { imsi, entries };
   }
 
-  private async getHarvestDataPage(
+  /**
+   * Harvest Dataの1ページを取得します。
+   *
+   * 直近データ探索のように、呼び出し側で早期打ち切りしたいユースケース向けです。
+   *
+   * @param imsi - IMSI
+   * @param from - 開始日時（UNIXタイムスタンプミリ秒）
+   * @param to - 終了日時（UNIXタイムスタンプミリ秒）
+   * @param sort - ソート順（"asc" または "desc"）
+   * @param limit - 取得件数上限
+   * @returns Harvest Dataエントリ一覧
+   */
+  async getHarvestDataPage(
     imsi: string,
     from: number,
     to: number,
