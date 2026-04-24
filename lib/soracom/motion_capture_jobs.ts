@@ -37,6 +37,8 @@ export type SoracomMotionCaptureJobInput = {
   totalEventCount: number;
   uploadedCount: number;
   failedCount: number;
+  activeEventTime?: number;
+  activeExportId?: string;
   claimId?: string;
   continuationTriggerId?: string;
   status: "starting" | "pending" | "completed";
@@ -83,6 +85,10 @@ export async function upsertMotionCaptureJob(
       total_event_count: job.totalEventCount,
       uploaded_count: job.uploadedCount,
       failed_count: job.failedCount,
+      ...(job.activeEventTime !== undefined
+        ? { active_event_time: job.activeEventTime }
+        : {}),
+      ...(job.activeExportId ? { active_export_id: job.activeExportId } : {}),
       ...(job.claimId ? { claim_id: job.claimId } : {}),
       ...(job.continuationTriggerId
         ? { continuation_trigger_id: job.continuationTriggerId }
@@ -168,6 +174,8 @@ function normalizeMotionCaptureJob(
   const totalEventCount = readNumber(item.total_event_count);
   const uploadedCount = readNumber(item.uploaded_count);
   const failedCount = readNumber(item.failed_count);
+  const activeEventTime = readNumber(item.active_event_time);
+  const activeExportId = readOptionalString(item.active_export_id);
   const claimId = readOptionalString(item.claim_id);
   const continuationTriggerId = readOptionalString(
     item.continuation_trigger_id,
@@ -207,6 +215,8 @@ function normalizeMotionCaptureJob(
     totalEventCount,
     uploadedCount,
     failedCount,
+    ...(activeEventTime !== undefined ? { activeEventTime } : {}),
+    ...(activeExportId ? { activeExportId } : {}),
     ...(claimId ? { claimId } : {}),
     ...(continuationTriggerId ? { continuationTriggerId } : {}),
     status,

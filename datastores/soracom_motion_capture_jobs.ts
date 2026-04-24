@@ -53,6 +53,14 @@ const SoracomMotionCaptureJobsDatastore = DefineDatastore({
       type: Schema.types.number,
       description: "失敗件数",
     },
+    active_event_time: {
+      type: Schema.types.number,
+      description: "処理中のイベント時刻（ms）",
+    },
+    active_export_id: {
+      type: Schema.types.string,
+      description: "処理中の SoraCam 画像エクスポート ID",
+    },
     claim_id: {
       type: Schema.types.string,
       description: "初期化 claim ID",

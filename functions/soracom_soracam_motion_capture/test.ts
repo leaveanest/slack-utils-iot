@@ -782,9 +782,142 @@ Deno.test("画像エクスポート待ちが時間予算内に終わらない場
     assertEquals(job?.uploadedCount, 0);
     assertEquals(job?.failedCount, 0);
     assertEquals(job?.nextIndex, 0);
+    assertEquals(job?.activeEventTime, 1700003000000);
+    assertEquals(job?.activeExportId, "exp-1700003000000");
     assertEquals(job?.continuationTriggerId, "Ft1");
     assertEquals(job?.status, "pending");
   } finally {
+    dateNowStub.restore();
+    setTimeoutStub.restore();
+  }
+});
+
+Deno.test("延期した画像エクスポートは次回 run で再作成せず再開する", async () => {
+  await prepareLocale("ja");
+
+  const fetchStub = stub(
+    globalThis,
+    "fetch",
+    (input: string | URL | Request) => {
+      const url = typeof input === "string"
+        ? input
+        : input instanceof URL
+        ? input.toString()
+        : input.url;
+
+      if (url === "https://upload.local/files") {
+        return Promise.resolve(new Response(null, { status: 200 }));
+      }
+
+      if (url === "https://image.local/1700003000000.jpg") {
+        return Promise.resolve(
+          new Response(new Uint8Array([1, 2, 3]), { status: 200 }),
+        );
+      }
+
+      throw new Error(`unexpected fetch: ${url}`);
+    },
+  );
+  let nowCalls = 0;
+  const dateNowStub = stub(
+    Date,
+    "now",
+    () =>
+      [1000, 1000, 46001, 46001, 46001][
+        Math.min(nowCalls++, 4)
+      ],
+  );
+  const setTimeoutStub = stubImmediateTimeout();
+
+  try {
+    const store: Record<string, Record<string, unknown>> = {};
+    let exportCalls = 0;
+    let statusCalls = 0;
+    const soracomClient = {
+      getSoraCamEvents(deviceId: string) {
+        const events: SoraCamEvent[] = [{
+          deviceId,
+          eventType: "motion",
+          eventTime: 1700003000000,
+          eventInfo: {},
+        }];
+        return Promise.resolve(events);
+      },
+      exportSoraCamImage(deviceId: string, time: number) {
+        exportCalls += 1;
+        return Promise.resolve({
+          exportId: `exp-${time}`,
+          deviceId,
+          status: "processing",
+          url: "",
+          requestedTime: time,
+          completedTime: 0,
+        });
+      },
+      getSoraCamImageExport(deviceId: string, exportId: string) {
+        statusCalls += 1;
+        return Promise.resolve({
+          exportId,
+          deviceId,
+          status: statusCalls === 1 ? "processing" : "completed",
+          url: statusCalls === 1 ? "" : "https://image.local/1700003000000.jpg",
+          requestedTime: 1700003000000,
+          completedTime: 1700003001000,
+        });
+      },
+    };
+
+    const firstRun = createMotionCaptureClient(store);
+    await processMotionCaptureBatch({
+      client: firstRun.client,
+      soracomClient,
+      channelId: "C123",
+      deviceId: "dev-1",
+      now: 1700007000000,
+    });
+
+    const deferredJob = await getMotionCaptureJob(
+      firstRun.client,
+      "C123",
+      "dev-1",
+    );
+    assertEquals(deferredJob?.activeExportId, "exp-1700003000000");
+    assertEquals(deferredJob?.nextIndex, 0);
+    assertEquals(exportCalls, 1);
+
+    const secondRun = createMotionCaptureClient(store);
+    const result = await processMotionCaptureBatch({
+      client: secondRun.client,
+      soracomClient,
+      channelId: "C123",
+      deviceId: "dev-1",
+      now: 1700008000000,
+    });
+
+    const completedJob = await getMotionCaptureJob(
+      secondRun.client,
+      "C123",
+      "dev-1",
+    );
+
+    assertEquals(exportCalls, 1);
+    assertEquals(statusCalls, 2);
+    assertEquals(secondRun.triggerDeletes, ["Ft1"]);
+    assertEquals(
+      secondRun.apiCalls.filter((call) =>
+        call.method === "files.completeUploadExternal"
+      ).length,
+      1,
+    );
+    assertEquals(result.exportedImages, 1);
+    assertEquals(completedJob?.activeExportId, undefined);
+    assertEquals(completedJob?.activeEventTime, undefined);
+    assertEquals(completedJob?.nextIndex, 1);
+    assertEquals(completedJob?.uploadedCount, 1);
+    assertEquals(completedJob?.failedCount, 0);
+    assertEquals(completedJob?.status, "completed");
+  } finally {
+    fetchStub.restore();
     dateNowStub.restore();
     setTimeoutStub.restore();
   }

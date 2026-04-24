@@ -138,6 +138,10 @@ export interface SoracomMotionCaptureJob {
   uploadedCount: number;
   /** 失敗件数 */
   failedCount: number;
+  /** 処理中のイベント時刻 */
+  activeEventTime?: number;
+  /** 処理中のエクスポート ID */
+  activeExportId?: string;
   /** 初期化 claim ID */
   claimId?: string;
   /** 次回自動継続実行用 trigger ID */
