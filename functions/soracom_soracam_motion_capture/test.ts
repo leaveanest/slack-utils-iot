@@ -715,7 +715,7 @@ Deno.test("古い初期化中ジョブは破棄して新規ジョブを作成で
   }
 });
 
-Deno.test("画像エクスポート待ちが時間予算内に終わらない場合は失敗として親メッセージを更新する", async () => {
+Deno.test("画像エクスポート待ちが時間予算内に終わらない場合は次回再開に回す", async () => {
   await prepareLocale("ja");
 
   let nowCalls = 0;
@@ -727,7 +727,7 @@ Deno.test("画像エクスポート待ちが時間予算内に終わらない場
   const setTimeoutStub = stubImmediateTimeout();
 
   try {
-    const { client } = createMotionCaptureClient();
+    const { client, apiCalls, triggerCreates } = createMotionCaptureClient();
     const soracomClient = {
       getSoraCamEvents(deviceId: string) {
         const events: SoraCamEvent[] = [{
@@ -771,10 +771,19 @@ Deno.test("画像エクスポート待ちが時間予算内に終わらない場
     const job = await getMotionCaptureJob(client, "C123", "dev-1");
 
     assertEquals(result.exportedImages, 0);
-    assertEquals(result.message.includes("失敗 1枚"), true);
+    assertEquals(result.message.includes("失敗 0枚"), true);
+    assertEquals(result.message.includes("残り 1枚"), true);
+    assertEquals(
+      apiCalls.filter((call) => call.method === "files.completeUploadExternal")
+        .length,
+      0,
+    );
+    assertEquals(triggerCreates.length, 1);
     assertEquals(job?.uploadedCount, 0);
-    assertEquals(job?.failedCount, 1);
-    assertEquals(job?.status, "completed");
+    assertEquals(job?.failedCount, 0);
+    assertEquals(job?.nextIndex, 0);
+    assertEquals(job?.continuationTriggerId, "Ft1");
+    assertEquals(job?.status, "pending");
   } finally {
     dateNowStub.restore();
     setTimeoutStub.restore();

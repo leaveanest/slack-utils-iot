@@ -16,6 +16,7 @@ import {
   deleteMotionCaptureJob,
   downloadSoraCamSnapshot,
   getMotionCaptureJob,
+  SoraCamImageExportTimeoutError,
   upsertMotionCaptureJob,
   waitForSoraCamImageExport,
 } from "../../lib/soracom/mod.ts";
@@ -139,7 +140,7 @@ type MotionCaptureClient =
   & MotionCaptureTriggerClient;
 
 type MotionCaptureUploadResult = {
-  status: "uploaded" | "failed";
+  status: "uploaded" | "failed" | "deferred";
   imageUrl?: string;
   errorMessage?: string;
 };
@@ -533,6 +534,20 @@ async function uploadMotionCaptureSnapshot(
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
+    if (
+      exportWaitTimeoutMs !== undefined &&
+      error instanceof SoraCamImageExportTimeoutError
+    ) {
+      console.warn(
+        `soracom_soracam_motion_capture deferred (${deviceId} @ ${eventTime}):`,
+        errorMessage,
+      );
+      return {
+        status: "deferred",
+        errorMessage,
+      };
+    }
+
     console.error(
       `soracom_soracam_motion_capture upload error (${deviceId} @ ${eventTime}):`,
       errorMessage,
@@ -738,6 +753,10 @@ export async function processMotionCaptureBatch(
       eventTime,
       remainingBudgetMs - MOTION_CAPTURE_UPLOAD_HEADROOM_MS,
     );
+    if (result.status === "deferred") {
+      break;
+    }
+
     job = advanceMotionCaptureJob(job, result);
     await upsertMotionCaptureJob(params.client, job);
   }

@@ -18,6 +18,18 @@ class RetryableSoraCamSnapshotDownloadError extends Error {
   }
 }
 
+export class SoraCamImageExportTimeoutError extends Error {
+  constructor(deviceId: string, exportId: string, status: string) {
+    super(
+      t("soracom.errors.soracam_image_export_timeout", {
+        deviceId,
+        exportId,
+        status,
+      }),
+    );
+  }
+}
+
 type SoraCamSnapshotClient = Pick<
   SoracomClient,
   | "listSoraCamRecordingsAndEvents"
@@ -162,13 +174,7 @@ export async function waitForSoraCamImageExport(
     await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
   }
 
-  throw new Error(
-    t("soracom.errors.soracam_image_export_timeout", {
-      deviceId,
-      exportId,
-      status: lastStatus,
-    }),
-  );
+  throw new SoraCamImageExportTimeoutError(deviceId, exportId, lastStatus);
 }
 
 /**
