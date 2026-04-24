@@ -160,10 +160,12 @@ export const MOTION_CAPTURE_BATCH_SIZE = 5;
 // Deployed custom functions typically allow up to 60 seconds.
 // Keep 10 seconds of headroom for progress updates and continuation scheduling.
 export const MOTION_CAPTURE_TIME_BUDGET_MS = 50_000;
+export const MOTION_CAPTURE_UPLOAD_HEADROOM_MS = 5_000;
 export const MOTION_CAPTURE_CONTINUATION_DELAY_MS = 60_000;
 export const MOTION_CAPTURE_CREATION_SETTLE_MS = 750;
 export const MOTION_CAPTURE_CREATION_WAIT_RETRIES = 20;
 export const MOTION_CAPTURE_CREATION_WAIT_INTERVAL_MS = 250;
+export const MOTION_CAPTURE_STALE_STARTING_JOB_MS = 60_000;
 const MOTION_CAPTURE_WORKFLOW_CALLBACK_ID =
   "soracom_soracam_motion_capture_workflow";
 const MOTION_CAPTURE_PENDING_THREAD_TS = "__pending__";
@@ -304,6 +306,19 @@ function setMotionCaptureContinuationTrigger(
     ...(!continuationTriggerId ? { continuationTriggerId: undefined } : {}),
     updatedAt: new Date(now).toISOString(),
   };
+}
+
+function isStaleStartingMotionCaptureJob(
+  job: SoracomMotionCaptureJob,
+  now: number,
+): boolean {
+  if (job.status !== "starting") {
+    return false;
+  }
+
+  const updatedAt = Date.parse(job.updatedAt);
+  return Number.isFinite(updatedAt) &&
+    now - updatedAt >= MOTION_CAPTURE_STALE_STARTING_JOB_MS;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -476,6 +491,7 @@ async function uploadMotionCaptureSnapshot(
   threadTs: string,
   deviceId: string,
   eventTime: number,
+  exportWaitTimeoutMs?: number,
 ): Promise<MotionCaptureUploadResult> {
   try {
     const requestedExport = await soracomClient.exportSoraCamImage(
@@ -489,6 +505,9 @@ async function uploadMotionCaptureSnapshot(
           soracomClient,
           deviceId,
           requestedExport.exportId,
+          exportWaitTimeoutMs === undefined
+            ? undefined
+            : { timeoutMs: exportWaitTimeoutMs },
         );
 
     const snapshotBytes = await downloadSoraCamSnapshot(
@@ -620,6 +639,18 @@ export async function processMotionCaptureBatch(
       params.deviceId,
       delayFn,
     );
+
+    if (
+      job?.status === "starting" &&
+      isStaleStartingMotionCaptureJob(job, nowFn())
+    ) {
+      await deleteMotionCaptureJob(
+        params.client,
+        params.channelId,
+        params.deviceId,
+      );
+      job = null;
+    }
   }
 
   if (job === null || job.status === "completed") {
@@ -692,7 +723,9 @@ export async function processMotionCaptureBatch(
   }
 
   for (const eventTime of selectMotionCaptureBatchEventTimes(job)) {
-    if (nowFn() - startedAt >= MOTION_CAPTURE_TIME_BUDGET_MS) {
+    const remainingBudgetMs = MOTION_CAPTURE_TIME_BUDGET_MS -
+      (nowFn() - startedAt);
+    if (remainingBudgetMs <= MOTION_CAPTURE_UPLOAD_HEADROOM_MS) {
       break;
     }
 
@@ -703,6 +736,7 @@ export async function processMotionCaptureBatch(
       job.threadTs,
       params.deviceId,
       eventTime,
+      remainingBudgetMs - MOTION_CAPTURE_UPLOAD_HEADROOM_MS,
     );
     job = advanceMotionCaptureJob(job, result);
     await upsertMotionCaptureJob(params.client, job);

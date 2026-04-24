@@ -41,6 +41,11 @@ export interface SoraCamSnapshotCaptureResult {
   snapshotBytes: Uint8Array;
 }
 
+export interface SoraCamImageExportWaitOptions {
+  timeoutMs?: number;
+  pollIntervalMs?: number;
+}
+
 /**
  * 録画区間一覧から安全なスナップショット取得時刻を選択します。
  *
@@ -135,8 +140,11 @@ export async function waitForSoraCamImageExport(
   soracomClient: Pick<SoraCamSnapshotClient, "getSoraCamImageExport">,
   deviceId: string,
   exportId: string,
+  options: SoraCamImageExportWaitOptions = {},
 ): Promise<SoraCamImageExport> {
-  const deadline = Date.now() + EXPORT_TIMEOUT_MS;
+  const timeoutMs = options.timeoutMs ?? EXPORT_TIMEOUT_MS;
+  const pollIntervalMs = options.pollIntervalMs ?? EXPORT_POLL_INTERVAL_MS;
+  const deadline = Date.now() + timeoutMs;
   let lastStatus = "initializing";
 
   while (Date.now() < deadline) {
@@ -151,9 +159,7 @@ export async function waitForSoraCamImageExport(
       return exportResult;
     }
 
-    await new Promise((resolve) =>
-      setTimeout(resolve, EXPORT_POLL_INTERVAL_MS)
-    );
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
   }
 
   throw new Error(

@@ -1,7 +1,10 @@
 import { assertEquals, assertRejects } from "std/testing/asserts.ts";
 import { stub } from "std/testing/mock.ts";
 import { initI18n, setLocale } from "../i18n/mod.ts";
-import { downloadSoraCamSnapshot } from "./snapshot.ts";
+import {
+  downloadSoraCamSnapshot,
+  waitForSoraCamImageExport,
+} from "./snapshot.ts";
 
 async function prepareLocale(locale: "en" | "ja" = "ja"): Promise<void> {
   await initI18n();
@@ -173,5 +176,48 @@ Deno.test("downloadSoraCamSnapshot: 401 応答は再試行せず即失敗する"
     assertEquals(fetchCalls, 1);
   } finally {
     fetchStub.restore();
+  }
+});
+
+Deno.test("waitForSoraCamImageExport: 指定 timeout 内に完了しない場合は待機を打ち切る", async () => {
+  await prepareLocale("ja");
+
+  let statusCalls = 0;
+  let nowCalls = 0;
+  const dateNowStub = stub(
+    Date,
+    "now",
+    () => [1000, 1000, 1001, 1006][Math.min(nowCalls++, 3)],
+  );
+  const setTimeoutStub = stubImmediateTimeout();
+  const soracomClient = {
+    getSoraCamImageExport(deviceId: string, exportId: string) {
+      statusCalls += 1;
+      return Promise.resolve({
+        exportId,
+        deviceId,
+        status: "processing",
+        url: "",
+        requestedTime: 0,
+        completedTime: 0,
+      });
+    },
+  };
+
+  try {
+    await assertRejects(
+      () =>
+        waitForSoraCamImageExport(soracomClient, "device-1", "export-1", {
+          timeoutMs: 5,
+          pollIntervalMs: 1,
+        }),
+      Error,
+      "タイムアウト",
+    );
+
+    assertEquals(statusCalls, 2);
+  } finally {
+    dateNowStub.restore();
+    setTimeoutStub.restore();
   }
 });
