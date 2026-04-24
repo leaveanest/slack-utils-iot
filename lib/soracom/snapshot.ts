@@ -18,6 +18,18 @@ class RetryableSoraCamSnapshotDownloadError extends Error {
   }
 }
 
+export class SoraCamImageExportTimeoutError extends Error {
+  constructor(deviceId: string, exportId: string, status: string) {
+    super(
+      t("soracom.errors.soracam_image_export_timeout", {
+        deviceId,
+        exportId,
+        status,
+      }),
+    );
+  }
+}
+
 type SoraCamSnapshotClient = Pick<
   SoracomClient,
   | "listSoraCamRecordingsAndEvents"
@@ -39,6 +51,11 @@ export interface SoraCamSnapshotCaptureResult {
   snapshotTime: number;
   /** ダウンロード済み JPEG */
   snapshotBytes: Uint8Array;
+}
+
+export interface SoraCamImageExportWaitOptions {
+  timeoutMs?: number;
+  pollIntervalMs?: number;
 }
 
 /**
@@ -135,8 +152,11 @@ export async function waitForSoraCamImageExport(
   soracomClient: Pick<SoraCamSnapshotClient, "getSoraCamImageExport">,
   deviceId: string,
   exportId: string,
+  options: SoraCamImageExportWaitOptions = {},
 ): Promise<SoraCamImageExport> {
-  const deadline = Date.now() + EXPORT_TIMEOUT_MS;
+  const timeoutMs = options.timeoutMs ?? EXPORT_TIMEOUT_MS;
+  const pollIntervalMs = options.pollIntervalMs ?? EXPORT_POLL_INTERVAL_MS;
+  const deadline = Date.now() + timeoutMs;
   let lastStatus = "initializing";
 
   while (Date.now() < deadline) {
@@ -151,18 +171,10 @@ export async function waitForSoraCamImageExport(
       return exportResult;
     }
 
-    await new Promise((resolve) =>
-      setTimeout(resolve, EXPORT_POLL_INTERVAL_MS)
-    );
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
   }
 
-  throw new Error(
-    t("soracom.errors.soracam_image_export_timeout", {
-      deviceId,
-      exportId,
-      status: lastStatus,
-    }),
-  );
+  throw new SoraCamImageExportTimeoutError(deviceId, exportId, lastStatus);
 }
 
 /**

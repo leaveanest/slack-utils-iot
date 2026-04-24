@@ -8,6 +8,7 @@ import {
   formatMotionCaptureMessage,
   formatPendingMotionCaptureMessage,
   MOTION_CAPTURE_BATCH_SIZE,
+  MOTION_CAPTURE_STALE_STARTING_JOB_MS,
   MOTION_CAPTURE_TIME_BUDGET_MS,
   processMotionCaptureBatch,
 } from "./mod.ts";
@@ -626,6 +627,299 @@ Deno.test("初期化中ジョブを見た後続 run は親メッセージを増�
     assertEquals(job?.status, "completed");
   } finally {
     fetchStub.restore();
+  }
+});
+
+Deno.test("古い初期化中ジョブは破棄して新規ジョブを作成できる", async () => {
+  await prepareLocale("ja");
+
+  const fetchStub = stub(
+    globalThis,
+    "fetch",
+    (input: string | URL | Request) => {
+      const url = typeof input === "string"
+        ? input
+        : input instanceof URL
+        ? input.toString()
+        : input.url;
+
+      if (url === "https://upload.local/files") {
+        return Promise.resolve(new Response(null, { status: 200 }));
+      }
+
+      if (url.startsWith("https://image.local/")) {
+        return Promise.resolve(
+          new Response(new Uint8Array([1, 2, 3]), { status: 200 }),
+        );
+      }
+
+      throw new Error(`unexpected fetch: ${url}`);
+    },
+  );
+
+  try {
+    const now = 1700007000000;
+    const staleUpdatedAt = new Date(
+      now - MOTION_CAPTURE_STALE_STARTING_JOB_MS - 1,
+    ).toISOString();
+    const store: Record<string, Record<string, unknown>> = {
+      "C123:dev-1": {
+        job_key: "C123:dev-1",
+        channel_id: "C123",
+        device_id: "dev-1",
+        thread_ts: "__pending__",
+        window_start_ms: 0,
+        window_end_ms: 0,
+        event_times_json: "[]",
+        next_index: 0,
+        total_event_count: 0,
+        uploaded_count: 0,
+        failed_count: 0,
+        claim_id: "claim-1",
+        status: "starting",
+        created_at: staleUpdatedAt,
+        updated_at: staleUpdatedAt,
+      },
+    };
+    const { client, posts, updates, apiCalls } = createMotionCaptureClient(
+      store,
+    );
+    const { soracomClient, getEventsCalls } = createSoracomClientMock([
+      1700003000000,
+    ]);
+
+    const result = await processMotionCaptureBatch({
+      client,
+      soracomClient,
+      channelId: "C123",
+      deviceId: "dev-1",
+      now,
+      delayFn: () => Promise.resolve(),
+    });
+
+    const job = await getMotionCaptureJob(client, "C123", "dev-1");
+
+    assertEquals(posts.length, 1);
+    assertEquals(updates.length, 1);
+    assertEquals(getEventsCalls.length, 1);
+    assertEquals(
+      apiCalls.filter((call) => call.method === "files.completeUploadExternal")
+        .length,
+      1,
+    );
+    assertEquals(result.exportedImages, 1);
+    assertEquals(job?.status, "completed");
+    assertEquals(job?.threadTs, "1742281200.000100");
+  } finally {
+    fetchStub.restore();
+  }
+});
+
+Deno.test("画像エクスポート待ちが時間予算内に終わらない場合は次回再開に回す", async () => {
+  await prepareLocale("ja");
+
+  let nowCalls = 0;
+  const dateNowStub = stub(
+    Date,
+    "now",
+    () => [1000, 1000, 46001][Math.min(nowCalls++, 2)],
+  );
+  const setTimeoutStub = stubImmediateTimeout();
+
+  try {
+    const { client, apiCalls, triggerCreates } = createMotionCaptureClient();
+    const soracomClient = {
+      getSoraCamEvents(deviceId: string) {
+        const events: SoraCamEvent[] = [{
+          deviceId,
+          eventType: "motion",
+          eventTime: 1700003000000,
+          eventInfo: {},
+        }];
+        return Promise.resolve(events);
+      },
+      exportSoraCamImage(deviceId: string, time: number) {
+        return Promise.resolve({
+          exportId: `exp-${time}`,
+          deviceId,
+          status: "processing",
+          url: "",
+          requestedTime: time,
+          completedTime: 0,
+        });
+      },
+      getSoraCamImageExport(deviceId: string, exportId: string) {
+        return Promise.resolve({
+          exportId,
+          deviceId,
+          status: "processing",
+          url: "",
+          requestedTime: 0,
+          completedTime: 0,
+        });
+      },
+    };
+
+    const result = await processMotionCaptureBatch({
+      client,
+      soracomClient,
+      channelId: "C123",
+      deviceId: "dev-1",
+      now: 1700007000000,
+    });
+
+    const job = await getMotionCaptureJob(client, "C123", "dev-1");
+
+    assertEquals(result.exportedImages, 0);
+    assertEquals(result.message.includes("失敗 0枚"), true);
+    assertEquals(result.message.includes("残り 1枚"), true);
+    assertEquals(
+      apiCalls.filter((call) => call.method === "files.completeUploadExternal")
+        .length,
+      0,
+    );
+    assertEquals(triggerCreates.length, 1);
+    assertEquals(job?.uploadedCount, 0);
+    assertEquals(job?.failedCount, 0);
+    assertEquals(job?.nextIndex, 0);
+    assertEquals(job?.activeEventTime, 1700003000000);
+    assertEquals(job?.activeExportId, "exp-1700003000000");
+    assertEquals(job?.continuationTriggerId, "Ft1");
+    assertEquals(job?.status, "pending");
+  } finally {
+    dateNowStub.restore();
+    setTimeoutStub.restore();
+  }
+});
+
+Deno.test("延期した画像エクスポートは次回 run で再作成せず再開する", async () => {
+  await prepareLocale("ja");
+
+  const fetchStub = stub(
+    globalThis,
+    "fetch",
+    (input: string | URL | Request) => {
+      const url = typeof input === "string"
+        ? input
+        : input instanceof URL
+        ? input.toString()
+        : input.url;
+
+      if (url === "https://upload.local/files") {
+        return Promise.resolve(new Response(null, { status: 200 }));
+      }
+
+      if (url === "https://image.local/1700003000000.jpg") {
+        return Promise.resolve(
+          new Response(new Uint8Array([1, 2, 3]), { status: 200 }),
+        );
+      }
+
+      throw new Error(`unexpected fetch: ${url}`);
+    },
+  );
+  let nowCalls = 0;
+  const dateNowStub = stub(
+    Date,
+    "now",
+    () =>
+      [1000, 1000, 46001, 46001, 46001][
+        Math.min(nowCalls++, 4)
+      ],
+  );
+  const setTimeoutStub = stubImmediateTimeout();
+
+  try {
+    const store: Record<string, Record<string, unknown>> = {};
+    let exportCalls = 0;
+    let statusCalls = 0;
+    const soracomClient = {
+      getSoraCamEvents(deviceId: string) {
+        const events: SoraCamEvent[] = [{
+          deviceId,
+          eventType: "motion",
+          eventTime: 1700003000000,
+          eventInfo: {},
+        }];
+        return Promise.resolve(events);
+      },
+      exportSoraCamImage(deviceId: string, time: number) {
+        exportCalls += 1;
+        return Promise.resolve({
+          exportId: `exp-${time}`,
+          deviceId,
+          status: "processing",
+          url: "",
+          requestedTime: time,
+          completedTime: 0,
+        });
+      },
+      getSoraCamImageExport(deviceId: string, exportId: string) {
+        statusCalls += 1;
+        return Promise.resolve({
+          exportId,
+          deviceId,
+          status: statusCalls === 1 ? "processing" : "completed",
+          url: statusCalls === 1 ? "" : "https://image.local/1700003000000.jpg",
+          requestedTime: 1700003000000,
+          completedTime: 1700003001000,
+        });
+      },
+    };
+
+    const firstRun = createMotionCaptureClient(store);
+    await processMotionCaptureBatch({
+      client: firstRun.client,
+      soracomClient,
+      channelId: "C123",
+      deviceId: "dev-1",
+      now: 1700007000000,
+    });
+
+    const deferredJob = await getMotionCaptureJob(
+      firstRun.client,
+      "C123",
+      "dev-1",
+    );
+    assertEquals(deferredJob?.activeExportId, "exp-1700003000000");
+    assertEquals(deferredJob?.nextIndex, 0);
+    assertEquals(exportCalls, 1);
+
+    const secondRun = createMotionCaptureClient(store);
+    const result = await processMotionCaptureBatch({
+      client: secondRun.client,
+      soracomClient,
+      channelId: "C123",
+      deviceId: "dev-1",
+      now: 1700008000000,
+    });
+
+    const completedJob = await getMotionCaptureJob(
+      secondRun.client,
+      "C123",
+      "dev-1",
+    );
+
+    assertEquals(exportCalls, 1);
+    assertEquals(statusCalls, 2);
+    assertEquals(secondRun.triggerDeletes, ["Ft1"]);
+    assertEquals(
+      secondRun.apiCalls.filter((call) =>
+        call.method === "files.completeUploadExternal"
+      ).length,
+      1,
+    );
+    assertEquals(result.exportedImages, 1);
+    assertEquals(completedJob?.activeExportId, undefined);
+    assertEquals(completedJob?.activeEventTime, undefined);
+    assertEquals(completedJob?.nextIndex, 1);
+    assertEquals(completedJob?.uploadedCount, 1);
+    assertEquals(completedJob?.failedCount, 0);
+    assertEquals(completedJob?.status, "completed");
+  } finally {
+    fetchStub.restore();
+    dateNowStub.restore();
+    setTimeoutStub.restore();
   }
 });
 

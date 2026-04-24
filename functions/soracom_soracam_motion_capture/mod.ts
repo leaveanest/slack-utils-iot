@@ -16,6 +16,7 @@ import {
   deleteMotionCaptureJob,
   downloadSoraCamSnapshot,
   getMotionCaptureJob,
+  SoraCamImageExportTimeoutError,
   upsertMotionCaptureJob,
   waitForSoraCamImageExport,
 } from "../../lib/soracom/mod.ts";
@@ -139,7 +140,9 @@ type MotionCaptureClient =
   & MotionCaptureTriggerClient;
 
 type MotionCaptureUploadResult = {
-  status: "uploaded" | "failed";
+  status: "uploaded" | "failed" | "deferred";
+  exportId?: string;
+  eventTime?: number;
   imageUrl?: string;
   errorMessage?: string;
 };
@@ -160,10 +163,12 @@ export const MOTION_CAPTURE_BATCH_SIZE = 5;
 // Deployed custom functions typically allow up to 60 seconds.
 // Keep 10 seconds of headroom for progress updates and continuation scheduling.
 export const MOTION_CAPTURE_TIME_BUDGET_MS = 50_000;
+export const MOTION_CAPTURE_UPLOAD_HEADROOM_MS = 5_000;
 export const MOTION_CAPTURE_CONTINUATION_DELAY_MS = 60_000;
 export const MOTION_CAPTURE_CREATION_SETTLE_MS = 750;
 export const MOTION_CAPTURE_CREATION_WAIT_RETRIES = 20;
 export const MOTION_CAPTURE_CREATION_WAIT_INTERVAL_MS = 250;
+export const MOTION_CAPTURE_STALE_STARTING_JOB_MS = 60_000;
 const MOTION_CAPTURE_WORKFLOW_CALLBACK_ID =
   "soracom_soracam_motion_capture_workflow";
 const MOTION_CAPTURE_PENDING_THREAD_TS = "__pending__";
@@ -304,6 +309,45 @@ function setMotionCaptureContinuationTrigger(
     ...(!continuationTriggerId ? { continuationTriggerId: undefined } : {}),
     updatedAt: new Date(now).toISOString(),
   };
+}
+
+function setMotionCaptureActiveExport(
+  job: SoracomMotionCaptureJob,
+  eventTime: number,
+  exportId: string,
+  now = Date.now(),
+): SoracomMotionCaptureJob {
+  return {
+    ...job,
+    activeEventTime: eventTime,
+    activeExportId: exportId,
+    updatedAt: new Date(now).toISOString(),
+  };
+}
+
+function clearMotionCaptureActiveExport(
+  job: SoracomMotionCaptureJob,
+  now = Date.now(),
+): SoracomMotionCaptureJob {
+  return {
+    ...job,
+    activeEventTime: undefined,
+    activeExportId: undefined,
+    updatedAt: new Date(now).toISOString(),
+  };
+}
+
+function isStaleStartingMotionCaptureJob(
+  job: SoracomMotionCaptureJob,
+  now: number,
+): boolean {
+  if (job.status !== "starting") {
+    return false;
+  }
+
+  const updatedAt = Date.parse(job.updatedAt);
+  return Number.isFinite(updatedAt) &&
+    now - updatedAt >= MOTION_CAPTURE_STALE_STARTING_JOB_MS;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -476,20 +520,39 @@ async function uploadMotionCaptureSnapshot(
   threadTs: string,
   deviceId: string,
   eventTime: number,
+  exportWaitTimeoutMs?: number,
+  activeExportId?: string,
 ): Promise<MotionCaptureUploadResult> {
+  let exportId = activeExportId;
   try {
-    const requestedExport = await soracomClient.exportSoraCamImage(
-      deviceId,
-      eventTime,
-    );
-    const completedExport =
-      requestedExport.status === "completed" && requestedExport.url
-        ? requestedExport
-        : await waitForSoraCamImageExport(
-          soracomClient,
-          deviceId,
-          requestedExport.exportId,
-        );
+    let completedExport;
+    if (activeExportId) {
+      completedExport = await waitForSoraCamImageExport(
+        soracomClient,
+        deviceId,
+        activeExportId,
+        exportWaitTimeoutMs === undefined
+          ? undefined
+          : { timeoutMs: exportWaitTimeoutMs },
+      );
+    } else {
+      const requestedExport = await soracomClient.exportSoraCamImage(
+        deviceId,
+        eventTime,
+      );
+      exportId = requestedExport.exportId;
+      completedExport =
+        requestedExport.status === "completed" && requestedExport.url
+          ? requestedExport
+          : await waitForSoraCamImageExport(
+            soracomClient,
+            deviceId,
+            requestedExport.exportId,
+            exportWaitTimeoutMs === undefined
+              ? undefined
+              : { timeoutMs: exportWaitTimeoutMs },
+          );
+    }
 
     const snapshotBytes = await downloadSoraCamSnapshot(
       deviceId,
@@ -510,16 +573,36 @@ async function uploadMotionCaptureSnapshot(
 
     return {
       status: "uploaded",
+      exportId: completedExport.exportId,
+      eventTime,
       imageUrl: completedExport.url,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
+    if (
+      exportWaitTimeoutMs !== undefined &&
+      error instanceof SoraCamImageExportTimeoutError
+    ) {
+      console.warn(
+        `soracom_soracam_motion_capture deferred (${deviceId} @ ${eventTime}):`,
+        errorMessage,
+      );
+      return {
+        status: "deferred",
+        ...(exportId ? { exportId } : {}),
+        eventTime,
+        errorMessage,
+      };
+    }
+
     console.error(
       `soracom_soracam_motion_capture upload error (${deviceId} @ ${eventTime}):`,
       errorMessage,
     );
     return {
       status: "failed",
+      ...(exportId ? { exportId } : {}),
+      eventTime,
       errorMessage,
     };
   }
@@ -620,6 +703,18 @@ export async function processMotionCaptureBatch(
       params.deviceId,
       delayFn,
     );
+
+    if (
+      job?.status === "starting" &&
+      isStaleStartingMotionCaptureJob(job, nowFn())
+    ) {
+      await deleteMotionCaptureJob(
+        params.client,
+        params.channelId,
+        params.deviceId,
+      );
+      job = null;
+    }
   }
 
   if (job === null || job.status === "completed") {
@@ -692,10 +787,15 @@ export async function processMotionCaptureBatch(
   }
 
   for (const eventTime of selectMotionCaptureBatchEventTimes(job)) {
-    if (nowFn() - startedAt >= MOTION_CAPTURE_TIME_BUDGET_MS) {
+    const remainingBudgetMs = MOTION_CAPTURE_TIME_BUDGET_MS -
+      (nowFn() - startedAt);
+    if (remainingBudgetMs <= MOTION_CAPTURE_UPLOAD_HEADROOM_MS) {
       break;
     }
 
+    const activeExportId = job.activeEventTime === eventTime
+      ? job.activeExportId
+      : undefined;
     const result = await uploadMotionCaptureSnapshot(
       params.soracomClient,
       params.client,
@@ -703,8 +803,23 @@ export async function processMotionCaptureBatch(
       job.threadTs,
       params.deviceId,
       eventTime,
+      remainingBudgetMs - MOTION_CAPTURE_UPLOAD_HEADROOM_MS,
+      activeExportId,
     );
-    job = advanceMotionCaptureJob(job, result);
+    if (result.status === "deferred") {
+      if (result.exportId !== undefined) {
+        job = setMotionCaptureActiveExport(
+          job,
+          eventTime,
+          result.exportId,
+          nowFn(),
+        );
+        await upsertMotionCaptureJob(params.client, job);
+      }
+      break;
+    }
+
+    job = clearMotionCaptureActiveExport(advanceMotionCaptureJob(job, result));
     await upsertMotionCaptureJob(params.client, job);
   }
 

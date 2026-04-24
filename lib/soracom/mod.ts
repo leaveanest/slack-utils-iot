@@ -83,6 +83,7 @@ export {
   downloadSoraCamSnapshot,
   pickSoraCamSnapshotTime,
   resolveSoraCamSnapshotTime,
+  SoraCamImageExportTimeoutError,
   waitForSoraCamImageExport,
 } from "./snapshot.ts";
 export {
